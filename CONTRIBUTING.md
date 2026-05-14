@@ -36,7 +36,7 @@ If you build `start-cli` from source, ensure your Docker VM has enough memory.
 
 This repo uses shared Start9 workflows:
 - `.github/workflows/build.yml` - PR build validation
-- `.github/workflows/tagAndRelease.yml` - auto tag+release on `main`
+- `.github/workflows/tagAndRelease.yml` - auto tag+release on `master`
 - `.github/workflows/release.yml` - manual tag-based release
 
 ## Release Order of Operations
@@ -53,10 +53,10 @@ Use this sequence for wrapper-only releases (no upstream version change):
    - `npm run build`
    - `make`
 4. Commit and push `next`.
-5. Open a PR from `next` to `main` and wait for CI to pass.
-6. Merge PR into `main`.
+5. Open a PR from `next` to `master` and wait for CI to pass.
+6. Merge PR into `master`.
 7. Confirm GitHub Actions `Tag and Release` completes successfully and publishes release artifacts.
 
 Notes:
 - For upstream upgrades, create a new upstream version file and reset downstream revision accordingly (for example to `:0-alpha.0`).
-- `release.yml` exists for manual tag-driven releases, but normal flow is merge to `main` and let `tagAndRelease.yml` run.
+- `release.yml` exists for manual tag-driven releases, but normal flow is merge to `master` and let `tagAndRelease.yml` run.
