@@ -35,48 +35,65 @@ Web Admin experience.
 
 ## Image and Container Runtime
 
+| Image | Role | Source |
+| --- | --- | --- |
+| `minecraft-server` | Minecraft Java Edition server | Upstream Docker image (`itzg/minecraft-server`), pinned by digest in `startos/manifest/index.ts` |
+| `rcon` | RCON Web Admin sidecar | Built from `rcon.Dockerfile` (extends upstream `itzg/rcon`, applies patches in `docker/rcon/`) |
+| `rcon-proxy` | nginx reverse proxy in front of the RCON Web Admin UI and websocket | Upstream `nginx:alpine` |
+
 | Property | Value |
 | --- | --- |
-| Primary image | `itzg/minecraft-server:java25@sha256:847b459c2bc263fe31838eb0b4e3d321d851b9071d94f658439ec53f2db57e6b` |
-| Sidecar image | `rcon` (built from `rcon.Dockerfile`) |
-| Proxy image | `nginx:1.27-alpine` |
 | Architectures | x86_64, aarch64 |
-| Entry command | Upstream entrypoint (`sdk.useEntrypoint()`) |
-| StartOS-managed upstream version | `VERSION=26.1.2` |
+| Entry command | Upstream entrypoint (`sdk.useEntrypoint()`) for all three containers |
 
 ---
 
 ## Volume and Data Layout
 
-| Volume | Mount point(s) | Purpose |
-| --- | --- | --- |
-| `main` | `/data` (minecraft), `/opt/rcon-web-admin-0.14.1/db` (rcon) | World data, server files, managed state, RCON admin DB |
+The package uses a single volume, `main`, with two distinct subpaths:
 
-StartOS-managed files inside the `main` volume:
-- `start9/store.json` (managed package state and server settings)
-- `whitelist.json` (generated from managed whitelist configuration)
+| Subpath in `main` volume | Container mount point | Purpose |
+| --- | --- | --- |
+| (volume root) | `/data` (minecraft container) | World saves, server files, StartOS-managed files |
+| `rcon-db/` | `/opt/rcon-web-admin-<version>/db` (rcon container) | RCON Web Admin SQLite DB and session state |
+
+StartOS-managed files at the `main` volume root:
+- `server.properties` — canonical Minecraft server config; written by the package's actions and read directly by the daemon
+- `start9/store.json` — package-internal state (memory profile, whitelisted player list, Web Admin credentials)
+- `whitelist.json` — written when the whitelist is enabled, removed when disabled; generated from the managed whitelist configuration
 
 ---
 
 ## Installation and First-Run Flow
 
 On first install, the package:
-1. Generates strong random credentials for RCON and Web Admin.
-2. Creates onboarding tasks:
-   - **critical**: Configure Server
-   - **important**: Create World
-   - **important**: Get Web Admin Credentials
+1. Seeds `server.properties` with sane defaults and generates a strong random RCON password (used internally by the Web Admin sidecar).
+2. Creates one onboarding task:
+   - **critical**: Set Web Admin Password — runs the action to generate a random Web Admin password and display it once. The service cannot start until this has been done.
+
+All gameplay defaults (memory, difficulty, world name, etc.) are sane out of the box. Run **Configure Server** or the **Worlds** actions only if you want to change them.
 
 ---
 
 ## Configuration Management
 
-Server settings are managed through StartOS actions and persisted in
-`start9/store.json`. Key managed settings include gameplay mode, difficulty,
-memory profile, MOTD, player limits, world selection, and whitelist state.
+Gameplay/server settings are managed by writing directly to
+`server.properties` via StartOS actions. Memory profile, the whitelisted
+player list, and the Web Admin credentials live in `start9/store.json`
+(no equivalent Minecraft config field exists for them).
 
-When settings change, StartOS re-evaluates runtime configuration and applies the
-new state on restart/reload behavior managed by the package.
+The image is run with `SKIP_SERVER_PROPERTIES=true` so it does not
+regenerate `server.properties` from environment variables. Hand-edits to
+keys the package does not model (`function-permission-level`,
+`network-compression-threshold`, etc.) are preserved across action runs.
+
+Mutating actions (configure server, set Web Admin password, whitelist
+add/remove, world create/select) trigger an automatic restart so the new
+state is applied to the running server.
+
+The world seed is set per-world via the **Create World** action — it is not
+exposed in the global **Configure Server** form, since changing it on a
+populated world has no effect.
 
 ---
 
@@ -105,8 +122,8 @@ Internal-only service ports:
 | `create-world` | Stage a new world name/seed | any |
 | `select-world` | Switch active world | any |
 | `delete-world` | Permanently delete a world save | only-stopped |
-| `get-web-admin-credentials` | Reveal Web Admin login credentials | only-running |
-| `get-server-info` | Show active server settings | only-running |
+| `set-web-admin-password` | Generate a random Web Admin password and display it once (required on install) | any |
+| `get-server-info` | Show active server settings and Web Admin username | only-running |
 | `get-live-server-stats` | Query live stats via RCON | only-running |
 | `add-to-whitelist` | Add player and enable whitelist | any |
 | `remove-from-whitelist` | Remove player and auto-disable empty whitelist | any |
@@ -132,7 +149,7 @@ Internal-only service ports:
 
 | Check | Method | Notes |
 | --- | --- | --- |
-| `minecraft-server` | Port listening on `25565`, then RCON `25575` | 30s grace period, delayed first check |
+| `minecraft-server` | Port listening on `25565`, then RCON `25575` | 30s grace period |
 | `rcon-admin` | Port listening on `4326` | Sidecar readiness |
 | `rcon-proxy` | Port listening on `8080` | User-facing Web Admin path |
 
@@ -147,15 +164,15 @@ None.
 ## Limitations and Differences
 
 1. This package targets vanilla Java Edition behavior via `itzg/minecraft-server`; advanced upstream modes (mod loaders/proxy stacks) are not surfaced as StartOS actions.
-2. Configuration is package-managed through actions and store state, rather than direct file editing in the UI.
+2. Configuration is package-managed: actions write `server.properties` directly. The image's env-var-driven configuration is bypassed via `SKIP_SERVER_PROPERTIES=true`.
 3. Web admin access is routed through an internal nginx proxy and exposed as a dedicated StartOS interface.
+4. There is no default Web Admin password. The service blocks startup until the user runs the **Set Web Admin Password** action, which generates a random password and displays it once.
 
 ---
 
 ## What Is Unchanged from Upstream
 
 - Core Minecraft server runtime and world formats.
-- Upstream image startup semantics and environment-variable driven configuration model.
 - Standard client connection flow for Java Edition on TCP port 25565.
 
 ---
@@ -170,49 +187,33 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for local build, install, and release wor
 
 ```yaml
 package_id: minecraft
-upstream_version: "26.1.2"
-image: "itzg/minecraft-server:java25@sha256:847b459c2bc263fe31838eb0b4e3d321d851b9071d94f658439ec53f2db57e6b"
 architectures: [x86_64, aarch64]
 volumes:
   main:
-    - /data
-    - /opt/rcon-web-admin-0.14.1/db
+    root: /data            # mount in minecraft container
+    rcon-db: /opt/rcon-web-admin-<version>/db  # subpath mount in rcon container
 ports:
   minecraft-server: 25565
   web-admin: 8080
 dependencies: none
-startos_managed_env_vars:
+managed_files:
+  - server.properties     # written directly by package actions
+  - whitelist.json        # generated when whitelist enabled
+  - start9/store.json     # memory profile, whitelist players, Web Admin creds
+minecraft_image_env_vars:
   - EULA
   - TYPE
   - VERSION
-  - MODE
-  - DIFFICULTY
-  - LEVEL
-  - SEED
   - INIT_MEMORY
   - MAX_MEMORY
-  - VIEW_DISTANCE
-  - SIMULATION_DISTANCE
-  - ENABLE_RCON
-  - RCON_PASSWORD
-  - RCON_PORT
-  - ONLINE_MODE
-  - PVP
-  - ALLOW_FLIGHT
-  - HARDCORE
-  - ENABLE_WHITELIST
-  - SPAWN_PROTECTION
-  - MOTD
-  - MAX_PLAYERS
-  - PAUSE_WHEN_EMPTY_SECONDS
-  - SERVER_PORT
+  - SKIP_SERVER_PROPERTIES
 actions:
   - configure-server
   - list-worlds
   - create-world
   - select-world
   - delete-world
-  - get-web-admin-credentials
+  - set-web-admin-password
   - get-server-info
   - get-live-server-stats
   - add-to-whitelist

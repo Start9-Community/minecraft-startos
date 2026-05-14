@@ -1,7 +1,8 @@
 import { rm } from 'node:fs/promises'
-import { sdk } from '../sdk'
-import { normalizeStoreConfig, storeJson } from '../fileModels/store.json'
-import { listWorldNames } from '../worlds'
+import { serverProperties } from '../../fileModels/server.properties'
+import { i18n } from '../../i18n'
+import { sdk } from '../../sdk'
+import { listWorldNames } from '../../worlds'
 
 const { InputSpec, Value } = sdk
 
@@ -22,29 +23,31 @@ const inputSpec = InputSpec.of({
 
     if (worldNames.length === 0) {
       return {
-        name: 'World Save',
-        description: 'No world saves are currently available to delete.',
+        name: i18n('World Save'),
+        description: i18n('No world saves are currently available to delete.'),
         warning: null,
         default: noWorldsOption,
         values: {
-          [noWorldsOption]: 'No world saves found',
+          [noWorldsOption]: i18n('No world saves found'),
         },
-        disabled: 'No world saves found.',
+        disabled: i18n('No world saves found.'),
       }
     }
 
     return {
-      name: 'World Save',
-      description: 'Select the world save folder to permanently delete.',
-      warning: 'Deleting a world is permanent and cannot be undone.',
+      name: i18n('World Save'),
+      description: i18n('Select the world save folder to permanently delete.'),
+      warning: i18n('Deleting a world is permanent and cannot be undone.'),
       default: worldNames[0],
       values: toWorldSelectValues(worldNames),
       disabled: false,
     }
   }),
   confirmation: Value.text({
-    name: 'Type DELETE to Confirm',
-    description: 'This permanently deletes the selected world save folder.',
+    name: i18n('Type DELETE to Confirm'),
+    description: i18n(
+      'This permanently deletes the selected world save folder.',
+    ),
     required: true,
     default: '',
     placeholder: 'DELETE',
@@ -55,13 +58,15 @@ const inputSpec = InputSpec.of({
 export const deleteWorld = sdk.Action.withInput(
   'delete-world',
   async () => ({
-    name: 'Delete World',
-    description:
+    name: i18n('Delete World'),
+    description: i18n(
       'Permanently delete an unused world save folder (service must be stopped)',
-    warning:
+    ),
+    warning: i18n(
       'This action permanently deletes world data and cannot be undone. Back up first if needed.',
+    ),
     allowedStatuses: 'only-stopped',
-    group: 'Worlds',
+    group: i18n('Worlds'),
     visibility: 'enabled',
   }),
   inputSpec,
@@ -70,8 +75,8 @@ export const deleteWorld = sdk.Action.withInput(
     if (input.worldName === noWorldsOption) {
       return {
         version: '1',
-        title: 'No Saved Worlds Found',
-        message: 'No world save folders were found to delete.',
+        title: i18n('No Saved Worlds Found'),
+        message: i18n('No world save folders were found to delete.'),
         result: null,
       }
     }
@@ -79,28 +84,29 @@ export const deleteWorld = sdk.Action.withInput(
     if (input.confirmation.trim() !== 'DELETE') {
       return {
         version: '1',
-        title: 'Confirmation Required',
-        message: 'Type DELETE exactly to confirm world deletion.',
+        title: i18n('Confirmation Required'),
+        message: i18n('Type DELETE exactly to confirm world deletion.'),
         result: null,
       }
     }
 
-    const config = normalizeStoreConfig(await storeJson.read().once())
-    if (!config) {
+    const props = await serverProperties.read().once()
+    if (!props) {
       return {
         version: '1',
-        title: 'Error',
-        message: 'Configuration not found.',
+        title: i18n('Error'),
+        message: i18n('Configuration not found.'),
         result: null,
       }
     }
 
-    if (input.worldName === config.levelName) {
+    if (input.worldName === props['level-name']) {
       return {
         version: '1',
-        title: 'Cannot Delete Configured World',
-        message:
+        title: i18n('Cannot Delete Configured World'),
+        message: i18n(
           'Use Select World to switch to a different world before deleting this one.',
+        ),
         result: null,
       }
     }
@@ -109,7 +115,7 @@ export const deleteWorld = sdk.Action.withInput(
     if (!worldNames.includes(input.worldName)) {
       return {
         version: '1',
-        title: 'World Not Found',
+        title: i18n('World Not Found'),
         message: `World save "${input.worldName}" was not found.`,
         result: null,
       }
@@ -124,42 +130,13 @@ export const deleteWorld = sdk.Action.withInput(
       if (isErrnoException(error) && error.code === 'ENOENT') {
         return {
           version: '1',
-          title: 'World Not Found',
+          title: i18n('World Not Found'),
           message: `World save "${input.worldName}" was not found.`,
           result: null,
         }
       }
 
       throw error
-    }
-
-    return {
-      version: '1',
-      title: 'World Deleted',
-      message: `World save "${input.worldName}" was deleted permanently.`,
-      result: {
-        type: 'group',
-        value: [
-          {
-            name: 'Deleted World',
-            description: null,
-            type: 'single' as const,
-            value: input.worldName,
-            copyable: true,
-            qr: false,
-            masked: false,
-          },
-          {
-            name: 'Remaining Saved Worlds',
-            description: null,
-            type: 'single' as const,
-            value: Math.max(worldNames.length - 1, 0).toString(),
-            copyable: false,
-            qr: false,
-            masked: false,
-          },
-        ],
-      },
     }
   },
 )

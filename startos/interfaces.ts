@@ -1,13 +1,15 @@
 import { sdk } from './sdk'
+import { i18n } from './i18n'
 import { gamePort, webAdminProxyPort } from './utils'
 import {
   defaultWebAdminUsername,
-  normalizeStoreConfig,
   storeJson,
 } from './fileModels/store.json'
 
 export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
-  const config = normalizeStoreConfig(await storeJson.read().const(effects))
+  const webAdminUsername =
+    (await storeJson.read((s) => s.webAdminUsername).const(effects)) ??
+    defaultWebAdminUsername
 
   // Web Admin Interface
   const webAdminMulti = sdk.MultiHost.of(effects, 'web-admin-multi')
@@ -15,13 +17,13 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     protocol: 'http',
   })
   const webAdminInterface = sdk.createInterface(effects, {
-    name: 'RCON Web Admin',
+    name: i18n('RCON Web Admin'),
     id: 'web-admin',
-    description: 'RCON-based web administration interface',
+    description: i18n('RCON-based web administration interface'),
     type: 'ui',
     masked: false,
     schemeOverride: null,
-    username: config?.webAdminUsername ?? defaultWebAdminUsername,
+    username: webAdminUsername,
     path: '',
     query: {},
   })
@@ -36,9 +38,9 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     secure: { ssl: false },
   })
   const minecraftInterface = sdk.createInterface(effects, {
-    name: 'Minecraft Server',
+    name: i18n('Minecraft Server'),
     id: 'minecraft-server',
-    description: 'Minecraft game server connection (Java Edition)',
+    description: i18n('Minecraft game server connection (Java Edition)'),
     type: 'p2p',
     masked: false,
     schemeOverride: null,

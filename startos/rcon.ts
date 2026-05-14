@@ -1,6 +1,6 @@
 import { Socket } from 'node:net'
 import type { T } from '@start9labs/start-sdk'
-import { normalizeStoreConfig, storeJson } from './fileModels/store.json'
+import { serverProperties } from './fileModels/server.properties'
 import { rconPort } from './utils'
 
 type RconPacket = {
@@ -214,8 +214,8 @@ export const connectToRcon = async (
   effects: T.Effects,
   timeoutMs = 2_500,
 ): Promise<RconConnectionResult> => {
-  const config = normalizeStoreConfig(await storeJson.read().once())
-  if (!config?.rconPassword) {
+  const props = await serverProperties.read().once()
+  if (!props?.['rcon.password']) {
     return {
       connection: null,
       error: 'RCON password is not configured yet.',
@@ -238,7 +238,7 @@ export const connectToRcon = async (
   for (const host of hostCandidates) {
     try {
       const connection = await RconConnection.connect(host, rconPort, timeoutMs)
-      await connection.authenticate(config.rconPassword, timeoutMs)
+      await connection.authenticate(props['rcon.password'], timeoutMs)
       return { connection, error: null }
     } catch (error) {
       lastError =

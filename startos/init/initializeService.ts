@@ -1,45 +1,29 @@
 import { utils } from '@start9labs/start-sdk'
-import { sdk } from '../sdk'
+import { setWebAdminPassword } from '../actions/setup/setWebAdminPassword'
+import { serverProperties } from '../fileModels/server.properties'
 import { storeJson } from '../fileModels/store.json'
-import { configureServer } from '../actions/configureServer'
-import { createWorld } from '../actions/createWorld'
-import { getWebAdminCredentials } from '../actions/getWebAdminCredentials'
+import { i18n } from '../i18n'
+import { sdk } from '../sdk'
 
 export const initializeService = sdk.setupOnInit(async (effects, kind) => {
-  if (!kind) return
+  // Seed defaults on every init so new schema defaults are picked up on
+  // upgrades. Existing values are preserved by the merge.
+  await storeJson.merge(effects, {})
+  await serverProperties.merge(effects, {})
 
-  if (kind === 'install') {
-    await storeJson.merge(effects, {
-      rconPassword: utils.getDefaultString({ charset: 'a-z,A-Z,0-9', len: 32 }),
-      webAdminPassword: utils.getDefaultString({
-        charset: 'a-z,A-Z,0-9',
-        len: 24,
-      }),
-    })
-  }
+  if (kind !== 'install') return
 
-  await sdk.action.createOwnTask(
-    effects,
-    configureServer,
-    kind === 'install' ? 'critical' : 'important',
-    {
-      reason:
-        kind === 'install'
-          ? 'Configure your Minecraft server settings before first start'
-          : 'Review or update your Minecraft server settings',
-      replayId: 'minecraft-configure-server',
-    },
-  )
+  // Generate the internal RCON password once. The web admin password is
+  // user-supplied via setWebAdminPassword.
+  await serverProperties.merge(effects, {
+    'rcon.password': utils.getDefaultString({
+      charset: 'a-z,A-Z,0-9',
+      len: 32,
+    }),
+  })
 
-  if (kind === 'install') {
-    await sdk.action.createOwnTask(effects, createWorld, 'important', {
-      reason: 'Choose your initial world name and optional seed before first start',
-      replayId: 'minecraft-create-initial-world',
-    })
-  }
-
-  await sdk.action.createOwnTask(effects, getWebAdminCredentials, 'important', {
-    reason: 'Retrieve your web admin credentials',
-    replayId: 'minecraft-web-admin-credentials',
+  // Critical task — blocks service start until the user sets a password.
+  await sdk.action.createOwnTask(effects, setWebAdminPassword, 'critical', {
+    reason: i18n('Set a Web Admin password before starting the server'),
   })
 })

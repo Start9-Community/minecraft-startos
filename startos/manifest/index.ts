@@ -1,14 +1,5 @@
 import { setupManifest } from '@start9labs/start-sdk'
-import { minecraftImageTag } from '../utils'
-import {
-  installAlert,
-  longDescription,
-  restoreAlert,
-  shortDescription,
-  stopAlert,
-  uninstallAlert,
-  updateAlert,
-} from './i18n'
+import { longDescription, shortDescription } from './i18n'
 
 export const manifest = setupManifest({
   id: 'minecraft',
@@ -18,7 +9,6 @@ export const manifest = setupManifest({
   upstreamRepo: 'https://github.com/itzg/docker-minecraft-server',
   marketingUrl: 'https://www.minecraft.net/',
   donationUrl: null,
-  docsUrls: ['https://docker-minecraft-server.readthedocs.io/'],
   description: {
     short: shortDescription,
     long: longDescription,
@@ -26,7 +16,10 @@ export const manifest = setupManifest({
   volumes: ['main'],
   images: {
     'minecraft-server': {
-      source: { dockerTag: `itzg/minecraft-server:${minecraftImageTag}` },
+      source: {
+        dockerTag:
+          'itzg/minecraft-server:java25@sha256:847b459c2bc263fe31838eb0b4e3d321d851b9071d94f658439ec53f2db57e6b',
+      },
       arch: ['x86_64', 'aarch64'],
     },
     rcon: {
@@ -37,14 +30,6 @@ export const manifest = setupManifest({
       source: { dockerTag: 'nginx:1.27-alpine' },
       arch: ['x86_64', 'aarch64'],
     },
-  },
-  alerts: {
-    install: installAlert,
-    update: updateAlert,
-    uninstall: uninstallAlert,
-    restore: restoreAlert,
-    start: null,
-    stop: stopAlert,
   },
   dependencies: {},
 })

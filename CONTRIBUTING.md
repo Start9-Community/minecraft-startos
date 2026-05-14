@@ -1,12 +1,11 @@
 # Contributing
 
-For packaging conventions and reference patterns, see the StartOS Packaging Guide:
-<https://docs.start9.com/packaging/0.4.0.x/>
+For packaging conventions and reference patterns, see the [StartOS Packaging Guide](https://docs.start9.com/packaging/).
 
 ## Development Environment
 
 Install and configure:
-- `start-cli` (match your StartOS server line, e.g. `v0.4.0-beta.5`)
+- `start-cli` (match your StartOS server line)
 - Node.js 22 + `npm`
 - Docker (for image builds)
 - `~/.startos/config.yaml` (with your server `host`)
@@ -46,8 +45,8 @@ Use this sequence for wrapper-only releases (no upstream version change):
 
 1. Work on `next` and ensure all intended changes are committed there.
 2. Bump ExVer in `startos/versions/`:
-   - Add a new version file (for example, `v26.1.2.0.a1.ts`).
-   - Set `version` (for example, `26.1.2:0-alpha.1`).
+   - Add a new version file (for example, `vX.Y.Z.N.ts`).
+   - Set `version` (for example, `X.Y.Z:N`).
    - Update `startos/versions/index.ts` so the new version is `current` and prior versions move into `other`.
 3. Validate locally:
    - `npm run check`

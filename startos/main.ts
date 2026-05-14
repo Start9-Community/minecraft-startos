@@ -1,36 +1,22 @@
+import { rm, writeFile } from 'fs/promises'
+import { serverProperties } from './fileModels/server.properties'
+import { storeJson } from './fileModels/store.json'
+import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
   gamePort,
-  minecraftVersion,
   rconPort,
   webAdminPort,
   webAdminProxyPort,
   webAdminWsPort,
 } from './utils'
-import { normalizeStoreConfig, storeJson } from './fileModels/store.json'
-import { rm, writeFile } from 'fs/promises'
 
+// Must match the rcon-web-admin version in the FROM line of rcon.Dockerfile.
+// The image installs to /opt/rcon-web-admin-<version>/, and we mount a
+// volume subpath onto its /db directory for persistence.
 const rconWebAdminDbPath = '/opt/rcon-web-admin-0.14.1/db'
-const minecraftInitialHealthCheckDelay = 5_000
 const minecraftHealthGracePeriod = 30_000
-const whitelistPath = '/media/startos/volumes/main/whitelist.json'
-
-const delayFirstHealthCheck: typeof sdk.trigger.defaultTrigger =
-  async function* (getInput) {
-    await new Promise((resolve) =>
-      setTimeout(resolve, minecraftInitialHealthCheckDelay),
-    )
-    yield
-
-    const defaultTrigger = sdk.trigger.defaultTrigger(getInput)
-    for (
-      let result = await defaultTrigger.next();
-      !result.done;
-      result = await defaultTrigger.next()
-    ) {
-      yield result.value
-    }
-  }
+const whitelistPath = sdk.volumes.main.subpath('whitelist.json')
 
 const proxyConfig = ({
   proxyPort,
@@ -80,44 +66,35 @@ server {
 `.trimStart()
 
 export const main = sdk.setupMain(async ({ effects }) => {
-  const config = normalizeStoreConfig(await storeJson.read().const(effects))
+  console.log('Starting Minecraft!')
 
-  if (!config || !config.rconPassword || !config.webAdminPassword) {
-    throw new Error('Configuration not found. Please restart the service.')
+  // store.json is package-internal — only our actions write to it, so .const()
+  // gives us automatic restart-on-change.
+  //
+  // server.properties is also written by Minecraft itself (the image truncates
+  // and rewrites on every load via Java's FileOutputStream), which produces
+  // a transient empty-file state where rcon.password parses back to the
+  // schema's '' catch fallback — different from the real value — and would
+  // trip .const() before RCON is ready. So we read it .once() and let the
+  // narrow set of actions that mutate only server.properties (createWorld,
+  // selectWorld) call effects.restart() explicitly.
+  const store = await storeJson.read().const(effects)
+  if (!store) {
+    throw new Error('no store.json')
   }
 
-  // Minecraft Server Daemon
-  const minecraftSub = await sdk.SubContainer.of(
-    effects,
-    { imageId: 'minecraft-server' },
-    sdk.Mounts.of().mountVolume({
-      volumeId: 'main',
-      subpath: null,
-      mountpoint: '/data',
-      readonly: false,
-    }),
-    'minecraft-server-sub',
-  )
+  const props = await serverProperties.read().once()
+  if (!props) {
+    throw new Error('no server.properties')
+  }
 
-  // Keep whitelist.json in sync with configured whitelist state.
-  if (config.whitelistEnabled) {
-    await writeFile(whitelistPath, JSON.stringify(config.whitelist, null, 2))
+  // Keep whitelist.json in sync with the configured player list.
+  if (props['white-list']) {
+    await writeFile(whitelistPath, JSON.stringify(store.whitelist, null, 2))
   } else {
     await rm(whitelistPath, { force: true })
   }
 
-  // RCON Web Admin Daemon
-  const rconAdminSub = await sdk.SubContainer.of(
-    effects,
-    { imageId: 'rcon' },
-    sdk.Mounts.of().mountVolume({
-      volumeId: 'main',
-      subpath: 'rcon-db',
-      mountpoint: rconWebAdminDbPath,
-      readonly: false,
-    }),
-    'rcon-sub',
-  )
   const rconProxySub = await sdk.SubContainer.of(
     effects,
     { imageId: 'rcon-proxy' },
@@ -136,47 +113,40 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   return sdk.Daemons.of(effects)
     .addDaemon('minecraft-server', {
-      subcontainer: minecraftSub,
+      subcontainer: await sdk.SubContainer.of(
+        effects,
+        { imageId: 'minecraft-server' },
+        sdk.Mounts.of().mountVolume({
+          volumeId: 'main',
+          subpath: null,
+          mountpoint: '/data',
+          readonly: false,
+        }),
+        'minecraft-server-sub',
+      ),
       exec: {
         command: sdk.useEntrypoint(),
         env: {
           EULA: 'TRUE',
           TYPE: 'VANILLA',
-          VERSION: minecraftVersion,
-          MODE: config.gameMode,
-          DIFFICULTY: config.difficulty,
-          LEVEL: config.levelName,
-          SEED: config.levelSeed,
-          INIT_MEMORY: config.memory.initial,
-          MAX_MEMORY: config.memory.maximum,
-          VIEW_DISTANCE: config.viewDistance.toString(),
-          SIMULATION_DISTANCE: config.simulationDistance.toString(),
-          ENABLE_RCON: 'true',
-          RCON_PASSWORD: config.rconPassword,
-          RCON_PORT: rconPort.toString(),
-          ONLINE_MODE: config.onlineMode ? 'true' : 'false',
-          PVP: config.pvp ? 'true' : 'false',
-          ALLOW_FLIGHT: config.allowFlight ? 'true' : 'false',
-          HARDCORE: config.hardcore ? 'true' : 'false',
-          ENABLE_WHITELIST: config.whitelistEnabled ? 'true' : 'false',
-          SPAWN_PROTECTION: config.spawnProtection.toString(),
-          MOTD: config.motd,
-          MAX_PLAYERS: config.maxPlayers.toString(),
-          PAUSE_WHEN_EMPTY_SECONDS: config.pauseWhenEmptySeconds.toString(),
-          SERVER_PORT: gamePort.toString(),
+          VERSION: '26.1.2',
+          INIT_MEMORY: store.memory.initial,
+          MAX_MEMORY: store.memory.maximum,
+          // We manage server.properties directly via the serverProperties
+          // FileHelper; tell the image not to regenerate it from env vars.
+          SKIP_SERVER_PROPERTIES: 'TRUE',
         },
       },
       ready: {
-        display: 'Minecraft Server',
+        display: i18n('Minecraft Server'),
         gracePeriod: minecraftHealthGracePeriod,
-        trigger: delayFirstHealthCheck,
         fn: async () => {
           const minecraftStatus = await sdk.healthCheck.checkPortListening(
             effects,
             gamePort,
             {
-              successMessage: 'Minecraft server is ready',
-              errorMessage: 'Minecraft server is not ready',
+              successMessage: i18n('Minecraft server is ready'),
+              errorMessage: i18n('Minecraft server is not ready'),
             },
           )
 
@@ -185,32 +155,42 @@ export const main = sdk.setupMain(async ({ effects }) => {
           }
 
           return sdk.healthCheck.checkPortListening(effects, rconPort, {
-            successMessage: 'Minecraft server is ready',
-            errorMessage: 'Minecraft server is ready, waiting for RCON',
+            successMessage: i18n('Minecraft server is ready'),
+            errorMessage: i18n('Minecraft server is ready, waiting for RCON'),
           })
         },
       },
       requires: [],
     })
     .addDaemon('rcon-admin', {
-      subcontainer: rconAdminSub,
+      subcontainer: await sdk.SubContainer.of(
+        effects,
+        { imageId: 'rcon' },
+        sdk.Mounts.of().mountVolume({
+          volumeId: 'main',
+          subpath: 'rcon-db',
+          mountpoint: rconWebAdminDbPath,
+          readonly: false,
+        }),
+        'rcon-sub',
+      ),
       exec: {
         command: sdk.useEntrypoint(),
         env: {
-          RWA_USERNAME: config.webAdminUsername,
-          RWA_PASSWORD: config.webAdminPassword,
+          RWA_USERNAME: store.webAdminUsername,
+          RWA_PASSWORD: store.webAdminPassword,
           RWA_ADMIN: 'TRUE',
           RWA_RCON_HOST: 'localhost',
           RWA_RCON_PORT: rconPort.toString(),
-          RWA_RCON_PASSWORD: config.rconPassword,
+          RWA_RCON_PASSWORD: props['rcon.password'],
         },
       },
       ready: {
-        display: 'RCON Web Admin',
+        display: i18n('RCON Web Admin'),
         fn: () =>
           sdk.healthCheck.checkPortListening(effects, webAdminPort, {
-            successMessage: 'Web admin is ready',
-            errorMessage: 'Web admin is not ready',
+            successMessage: i18n('Web admin is ready'),
+            errorMessage: i18n('Web admin is not ready'),
           }),
       },
       requires: ['minecraft-server'],
@@ -221,11 +201,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
         command: sdk.useEntrypoint(),
       },
       ready: {
-        display: 'RCON Web Admin Proxy',
+        display: i18n('RCON Web Admin Proxy'),
         fn: () =>
           sdk.healthCheck.checkPortListening(effects, webAdminProxyPort, {
-            successMessage: 'Web admin proxy is ready',
-            errorMessage: 'Web admin proxy is not ready',
+            successMessage: i18n('Web admin proxy is ready'),
+            errorMessage: i18n('Web admin proxy is not ready'),
           }),
       },
       requires: ['rcon-admin'],

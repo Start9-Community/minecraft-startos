@@ -1,14 +1,14 @@
 import { sdk } from '../sdk'
-import { configureServer } from './configureServer'
-import { getServerInfo } from './getServerInfo'
-import { getLiveServerStats } from './getLiveServerStats'
-import { getWebAdminCredentials } from './getWebAdminCredentials'
-import { listWorlds } from './listWorlds'
-import { createWorld } from './createWorld'
-import { selectWorld } from './selectWorld'
-import { deleteWorld } from './deleteWorld'
-import { addToWhitelist } from './addToWhitelist'
-import { removeFromWhitelist } from './removeFromWhitelist'
+import { getLiveServerStats } from './info/getLiveServerStats'
+import { configureServer } from './setup/configureServer'
+import { getServerInfo } from './setup/getServerInfo'
+import { setWebAdminPassword } from './setup/setWebAdminPassword'
+import { addToWhitelist } from './whitelist/addToWhitelist'
+import { removeFromWhitelist } from './whitelist/removeFromWhitelist'
+import { createWorld } from './worlds/createWorld'
+import { deleteWorld } from './worlds/deleteWorld'
+import { listWorlds } from './worlds/listWorlds'
+import { selectWorld } from './worlds/selectWorld'
 
 export const actions = sdk.Actions.of()
   .addAction(configureServer)
@@ -16,7 +16,7 @@ export const actions = sdk.Actions.of()
   .addAction(createWorld)
   .addAction(selectWorld)
   .addAction(deleteWorld)
-  .addAction(getWebAdminCredentials)
+  .addAction(setWebAdminPassword)
   .addAction(getServerInfo)
   .addAction(getLiveServerStats)
   .addAction(addToWhitelist)

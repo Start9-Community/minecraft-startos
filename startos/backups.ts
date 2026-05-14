@@ -12,12 +12,7 @@ export const { createBackup, restoreInit } = sdk.setupBackups(
 const flushWorldBeforeBackup = async (effects: T.Effects) => {
   const status = await sdk.getStatus(effects).once()
 
-  if (!status?.started) {
-    console.log(
-      '[backup] Minecraft server already stopped; skipping live save-all flush',
-    )
-    return
-  }
+  if (!status?.started) return
 
   const rcon = await connectToRcon(effects, 3_000)
   if (!rcon.connection) {
@@ -26,7 +21,6 @@ const flushWorldBeforeBackup = async (effects: T.Effects) => {
 
   try {
     await rcon.connection.command('save-all flush', 5_000)
-    console.log('[backup] save-all flush completed')
   } finally {
     rcon.connection.close()
   }

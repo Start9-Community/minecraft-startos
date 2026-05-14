@@ -1,5 +1,6 @@
-import { sdk } from '../sdk'
-import { connectToRcon } from '../rcon'
+import { i18n } from '../../i18n'
+import { connectToRcon } from '../../rcon'
+import { sdk } from '../../sdk'
 
 const toSingle = (
   name: string,
@@ -60,17 +61,17 @@ const normalizeDaytimeTicks = (ticks: number): number =>
   ((ticks % 24_000) + 24_000) % 24_000
 
 const describeTimeOfDay = (ticks: number | null): string => {
-  if (ticks === null) return 'Unavailable'
+  if (ticks === null) return i18n('Unavailable')
 
   const normalized = normalizeDaytimeTicks(ticks)
 
-  if (normalized < 1_000) return '☀ Sunrise'
-  if (normalized < 6_000) return '☀ Morning'
-  if (normalized < 12_000) return '☀ Day'
-  if (normalized < 13_000) return '🌙 Dusk'
-  if (normalized < 18_000) return '🌙 Night'
-  if (normalized < 23_000) return '🌙 Midnight'
-  return '☀ Sunrise'
+  if (normalized < 1_000) return i18n('☀ Sunrise')
+  if (normalized < 6_000) return i18n('☀ Morning')
+  if (normalized < 12_000) return i18n('☀ Day')
+  if (normalized < 13_000) return i18n('🌙 Dusk')
+  if (normalized < 18_000) return i18n('🌙 Night')
+  if (normalized < 23_000) return i18n('🌙 Midnight')
+  return i18n('☀ Sunrise')
 }
 
 const toMinecraftClock = (ticks: number | null): string | null => {
@@ -87,18 +88,18 @@ const toMinecraftClock = (ticks: number | null): string | null => {
 }
 
 const describeMoonPhase = (worldDay: number | null): string => {
-  if (worldDay === null) return 'Unavailable'
+  if (worldDay === null) return i18n('Unavailable')
 
   const phase = ((worldDay % 8) + 8) % 8
   const phases = [
-    '🌕 Full Moon',
-    '🌖 Waning Gibbous',
-    '🌗 Last Quarter',
-    '🌘 Waning Crescent',
-    '🌑 New Moon',
-    '🌒 Waxing Crescent',
-    '🌓 First Quarter',
-    '🌔 Waxing Gibbous',
+    i18n('🌕 Full Moon'),
+    i18n('🌖 Waning Gibbous'),
+    i18n('🌗 Last Quarter'),
+    i18n('🌘 Waning Crescent'),
+    i18n('🌑 New Moon'),
+    i18n('🌒 Waxing Crescent'),
+    i18n('🌓 First Quarter'),
+    i18n('🌔 Waxing Gibbous'),
   ]
 
   return phases[phase]
@@ -107,11 +108,13 @@ const describeMoonPhase = (worldDay: number | null): string => {
 export const getLiveServerStats = sdk.Action.withoutInput(
   'get-live-server-stats',
   async () => ({
-    name: 'Get Live Server Stats',
-    description: 'Show live player and world stats from the running server',
+    name: i18n('Get Live Server Stats'),
+    description: i18n(
+      'Show live player and world stats from the running server',
+    ),
     warning: null,
     allowedStatuses: 'only-running',
-    group: '\u00A0Info',
+    group: i18n('Info'),
     visibility: 'enabled',
   }),
   async ({ effects }) => {
@@ -119,7 +122,7 @@ export const getLiveServerStats = sdk.Action.withoutInput(
     if (!rcon.connection) {
       return {
         version: '1',
-        title: 'Unable to Fetch Live Stats',
+        title: i18n('Unable to Fetch Live Stats'),
         message: rcon.error,
         result: null,
       }
@@ -137,16 +140,23 @@ export const getLiveServerStats = sdk.Action.withoutInput(
     }
 
     try {
-      const playersOutput = await runCommand('player list', 'list')
-      const dayOutput = await runCommand('world day', 'time query day')
-      const daytimeOutput = await runCommand('time of day', 'time query daytime')
-      const gameTimeOutput = await runCommand('game time', 'time query gametime')
+      const playersOutput = await runCommand(i18n('player list'), 'list')
+      const dayOutput = await runCommand(i18n('world day'), 'time query day')
+      const daytimeOutput = await runCommand(
+        i18n('time of day'),
+        'time query daytime',
+      )
+      const gameTimeOutput = await runCommand(
+        i18n('game time'),
+        'time query gametime',
+      )
 
       const players = parsePlayersInfo(playersOutput)
       const worldDayFromDay = parseInteger(dayOutput)
       const gameTime = parseInteger(gameTimeOutput)
       const worldDay =
-        worldDayFromDay ?? (gameTime !== null ? Math.floor(gameTime / 24_000) : null)
+        worldDayFromDay ??
+        (gameTime !== null ? Math.floor(gameTime / 24_000) : null)
       const daytimeFromQuery = parseInteger(daytimeOutput)
       const daytimeTicks =
         daytimeFromQuery ??
@@ -155,43 +165,45 @@ export const getLiveServerStats = sdk.Action.withoutInput(
 
       return {
         version: '1',
-        title: 'Live Server Stats',
+        title: i18n('Live Server Stats'),
         message:
           unavailableStats.length > 0
             ? `Some stats were unavailable: ${unavailableStats.join(', ')}.`
-            : 'Live data fetched via RCON.',
+            : i18n('Live data fetched via RCON.'),
         result: {
           type: 'group',
           value: [
             toSingle(
-              'Players Online',
+              i18n('Players Online'),
               players.online !== null && players.max !== null
                 ? `${players.online}/${players.max}`
-                : 'Unavailable',
+                : i18n('Unavailable'),
             ),
             toSingle(
-              'Connected Players',
+              i18n('Connected Players'),
               players.online === 0
-                ? 'None'
+                ? i18n('None')
                 : players.players.length > 0
                   ? players.players.join(', ')
-                  : 'Unavailable',
+                  : i18n('Unavailable'),
             ),
-            toSingle('Time of Day', describeTimeOfDay(daytimeTicks)),
+            toSingle(i18n('Time of Day'), describeTimeOfDay(daytimeTicks)),
             toSingle(
-              'In-Game Clock',
-              clock ? `${clock}` : 'Unavailable',
-              'Minecraft day starts at 06:00',
-            ),
-            toSingle(
-              'Daytime Ticks',
-              daytimeTicks !== null ? daytimeTicks.toString() : 'Unavailable',
+              i18n('In-Game Clock'),
+              clock ? `${clock}` : i18n('Unavailable'),
+              i18n('Minecraft day starts at 06:00'),
             ),
             toSingle(
-              'World Day',
-              worldDay !== null ? worldDay.toString() : 'Unavailable',
+              i18n('Daytime Ticks'),
+              daytimeTicks !== null
+                ? daytimeTicks.toString()
+                : i18n('Unavailable'),
             ),
-            toSingle('Moon Phase', describeMoonPhase(worldDay)),
+            toSingle(
+              i18n('World Day'),
+              worldDay !== null ? worldDay.toString() : i18n('Unavailable'),
+            ),
+            toSingle(i18n('Moon Phase'), describeMoonPhase(worldDay)),
           ],
         },
       }

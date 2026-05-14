@@ -1,11 +1,8 @@
-import { sdk } from '../sdk'
 import {
+  defaultAllowFlight,
   defaultDifficulty,
   defaultGameMode,
-  defaultInitialMemory,
-  defaultAllowFlight,
   defaultHardcore,
-  defaultMaximumMemory,
   defaultMaxPlayers,
   defaultMotd,
   defaultOnlineMode,
@@ -15,9 +12,15 @@ import {
   defaultSpawnProtection,
   defaultViewDistance,
   defaultWhitelistEnabled,
+  serverProperties,
+} from '../../fileModels/server.properties'
+import {
+  defaultInitialMemory,
+  defaultMaximumMemory,
   storeJson,
-  normalizeStoreConfig,
-} from '../fileModels/store.json'
+} from '../../fileModels/store.json'
+import { i18n } from '../../i18n'
+import { sdk } from '../../sdk'
 
 const { InputSpec, Value, Variants } = sdk
 
@@ -84,37 +87,40 @@ const toCustomMemoryPrefill = (memory: MemoryConfig) => ({
   ),
 })
 
-const defaultMemoryVariant =
-  detectMemoryVariant({
-    initial: defaultInitialMemory,
-    maximum: defaultMaximumMemory,
-  }) === 'custom'
+const detectedDefaultMemoryVariant = detectMemoryVariant({
+  initial: defaultInitialMemory,
+  maximum: defaultMaximumMemory,
+})
+const defaultMemoryVariant: MemoryVariantId =
+  detectedDefaultMemoryVariant === 'custom'
     ? 'starter'
-    : detectMemoryVariant({
-        initial: defaultInitialMemory,
-        maximum: defaultMaximumMemory,
-      })
+    : detectedDefaultMemoryVariant
 
 const memoryVariants = Variants.of({
   starter: {
-    name: 'Starter (Recommended) — 1G initial / 2G max (best for 1-5 players)',
+    name: i18n(
+      'Starter (Recommended) — 1G initial / 2G max (best for 1-5 players)',
+    ),
     spec: InputSpec.of({}),
   },
   standard: {
-    name: 'Standard — 2G initial / 4G max (best for 5-10 players)',
+    name: i18n('Standard — 2G initial / 4G max (best for 5-10 players)'),
     spec: InputSpec.of({}),
   },
   high: {
-    name: 'High — 4G initial / 6G max (for heavier worlds or >10 players)',
+    name: i18n(
+      'High — 4G initial / 6G max (for heavier worlds or >10 players)',
+    ),
     spec: InputSpec.of({}),
   },
   custom: {
-    name: 'Custom (Advanced)',
+    name: i18n('Custom (Advanced)'),
     spec: InputSpec.of({
       initialGiB: Value.number({
-        name: 'Starting Memory',
-        description:
+        name: i18n('Starting Memory'),
+        description: i18n(
           'Initial Java heap size in GiB. This is where Java starts before growing.',
+        ),
         required: true,
         default: defaultCustomInitialGiB,
         integer: true,
@@ -124,9 +130,10 @@ const memoryVariants = Variants.of({
         units: 'GiB',
       }),
       maximumGiB: Value.number({
-        name: 'Maximum Memory',
-        description:
+        name: i18n('Maximum Memory'),
+        description: i18n(
           'Maximum Java heap size in GiB. Keep this at or above Starting Memory.',
+        ),
         required: true,
         default: defaultCustomMaximumGiB,
         integer: true,
@@ -141,37 +148,38 @@ const memoryVariants = Variants.of({
 
 const inputSpec = InputSpec.of({
   gameMode: Value.select({
-    name: 'Game Mode',
-    description: 'Select the default game mode for players',
+    name: i18n('Game Mode'),
+    description: i18n('Select the default game mode for players'),
     default: defaultGameMode,
     values: {
-      survival: 'Survival',
-      creative: 'Creative',
-      adventure: 'Adventure',
-      spectator: 'Spectator',
+      survival: i18n('Survival'),
+      creative: i18n('Creative'),
+      adventure: i18n('Adventure'),
+      spectator: i18n('Spectator'),
     },
   }),
   difficulty: Value.select({
-    name: 'Difficulty',
-    description: 'Server difficulty level',
+    name: i18n('Difficulty'),
+    description: i18n('Server difficulty level'),
     default: defaultDifficulty,
     values: {
-      peaceful: 'Peaceful',
-      easy: 'Easy',
-      normal: 'Normal',
-      hard: 'Hard',
+      peaceful: i18n('Peaceful'),
+      easy: i18n('Easy'),
+      normal: i18n('Normal'),
+      hard: i18n('Hard'),
     },
   }),
   memory: Value.union({
-    name: 'Memory Allocation',
-    description:
+    name: i18n('Memory Allocation'),
+    description: i18n(
       'Pick a preset profile or choose Custom. Most vanilla servers run well with Starter or Standard.',
+    ),
     default: defaultMemoryVariant,
     variants: memoryVariants,
   }),
   maxPlayers: Value.number({
-    name: 'Max Players',
-    description: 'Maximum number of players that can join',
+    name: i18n('Max Players'),
+    description: i18n('Maximum number of players that can join'),
     required: true,
     default: defaultMaxPlayers,
     integer: true,
@@ -179,9 +187,10 @@ const inputSpec = InputSpec.of({
     max: 10000,
   }),
   viewDistance: Value.number({
-    name: 'View Distance',
-    description:
+    name: i18n('View Distance'),
+    description: i18n(
       'How many chunks players can see in each direction. Higher values use more CPU and RAM.',
+    ),
     required: true,
     default: defaultViewDistance,
     integer: true,
@@ -191,9 +200,10 @@ const inputSpec = InputSpec.of({
     units: 'chunks',
   }),
   simulationDistance: Value.number({
-    name: 'Simulation Distance',
-    description:
+    name: i18n('Simulation Distance'),
+    description: i18n(
       'How many chunks are actively ticking (redstone, mobs, crop growth). Keep at or below View Distance.',
+    ),
     required: true,
     default: defaultSimulationDistance,
     integer: true,
@@ -203,32 +213,36 @@ const inputSpec = InputSpec.of({
     units: 'chunks',
   }),
   onlineMode: Value.toggle({
-    name: 'Online Mode',
-    description:
+    name: i18n('Online Mode'),
+    description: i18n(
       'Require Mojang account authentication for joining players. Strongly recommended for public servers.',
+    ),
     default: defaultOnlineMode,
   }),
   pvp: Value.toggle({
-    name: 'Player-vs-Player (PvP)',
-    description: 'Allow players to damage each other.',
+    name: i18n('Player-vs-Player (PvP)'),
+    description: i18n('Allow players to damage each other.'),
     default: defaultPvp,
   }),
   allowFlight: Value.toggle({
-    name: 'Allow Flight',
-    description:
+    name: i18n('Allow Flight'),
+    description: i18n(
       'Allow player flight. Useful for modded clients; also prevents accidental kicks from anti-flying checks.',
+    ),
     default: defaultAllowFlight,
   }),
   hardcore: Value.toggle({
-    name: 'Hardcore Mode',
-    description:
+    name: i18n('Hardcore Mode'),
+    description: i18n(
       'Enable hardcore gameplay rules. Intended for permanent-death style servers.',
+    ),
     default: defaultHardcore,
   }),
   spawnProtection: Value.number({
-    name: 'Spawn Protection Radius',
-    description:
+    name: i18n('Spawn Protection Radius'),
+    description: i18n(
       'Radius around world spawn where non-ops cannot build/break. Set to 0 to disable.',
+    ),
     required: true,
     default: defaultSpawnProtection,
     integer: true,
@@ -238,9 +252,10 @@ const inputSpec = InputSpec.of({
     units: 'blocks',
   }),
   pauseWhenEmptySeconds: Value.number({
-    name: 'Pause When Empty (seconds)',
-    description:
+    name: i18n('Pause When Empty (seconds)'),
+    description: i18n(
       'When no players are online, pause world ticking after this many seconds. Set to 0 or -1 to disable.',
+    ),
     required: true,
     default: defaultPauseWhenEmptySeconds,
     integer: true,
@@ -250,16 +265,16 @@ const inputSpec = InputSpec.of({
     units: 'seconds',
   }),
   motd: Value.text({
-    name: 'Message of the Day (MOTD)',
-    description: 'Server description shown in the server list',
+    name: i18n('Message of the Day (MOTD)'),
+    description: i18n('Server description shown in the server list'),
     required: true,
     default: defaultMotd,
     placeholder: defaultMotd,
     masked: false,
   }),
   whitelistEnabled: Value.toggle({
-    name: 'Enable Whitelist',
-    description: 'Only allow whitelisted players to join',
+    name: i18n('Enable Whitelist'),
+    description: i18n('Only allow whitelisted players to join'),
     default: defaultWhitelistEnabled,
   }),
 })
@@ -267,54 +282,48 @@ const inputSpec = InputSpec.of({
 export const configureServer = sdk.Action.withInput(
   'configure-server',
   async () => ({
-    name: 'Configure Server',
-    description: 'Configure your Minecraft server settings',
-    warning:
-      'This will overwrite your current configuration. The server must be restarted for changes to take effect. Use List Worlds, Select World, and Create World in the Worlds action group to manage world saves.',
+    name: i18n('Configure Server'),
+    description: i18n('Configure your Minecraft server settings'),
+    warning: null,
     allowedStatuses: 'any',
-    group: 'Setup',
+    group: i18n('Setup'),
     visibility: 'enabled',
   }),
   inputSpec,
   async () => {
-    const config = normalizeStoreConfig(await storeJson.read().once())
-    if (!config) return {}
+    const props = await serverProperties.read().once()
+    const store = await storeJson.read().once()
+    if (!props || !store) return {}
 
-    const memoryVariant = detectMemoryVariant(config.memory)
+    const memoryVariant = detectMemoryVariant(store.memory)
 
     return {
-      gameMode: config.gameMode as
-        | 'survival'
-        | 'creative'
-        | 'adventure'
-        | 'spectator',
-      difficulty: config.difficulty as 'peaceful' | 'easy' | 'normal' | 'hard',
+      gameMode: props.gamemode,
+      difficulty: props.difficulty,
       memory:
         memoryVariant === 'custom'
           ? {
               selection: 'custom' as const,
-              value: toCustomMemoryPrefill(config.memory),
+              value: toCustomMemoryPrefill(store.memory),
             }
           : {
               selection: memoryVariant,
               value: {},
             },
-      maxPlayers: config.maxPlayers,
-      viewDistance: config.viewDistance,
-      simulationDistance: config.simulationDistance,
-      onlineMode: config.onlineMode,
-      pvp: config.pvp,
-      allowFlight: config.allowFlight,
-      hardcore: config.hardcore,
-      spawnProtection: config.spawnProtection,
-      pauseWhenEmptySeconds: config.pauseWhenEmptySeconds,
-      motd: config.motd,
-      whitelistEnabled: config.whitelistEnabled,
+      maxPlayers: props['max-players'],
+      viewDistance: props['view-distance'],
+      simulationDistance: props['simulation-distance'],
+      onlineMode: props['online-mode'],
+      pvp: props.pvp,
+      allowFlight: props['allow-flight'],
+      hardcore: props.hardcore,
+      spawnProtection: props['spawn-protection'],
+      pauseWhenEmptySeconds: props['pause-when-empty-seconds'],
+      motd: props.motd,
+      whitelistEnabled: props['white-list'],
     }
   },
   async ({ effects, input }) => {
-    const existingConfig = normalizeStoreConfig(await storeJson.read().once())
-
     let resolvedMemory: MemoryConfig
     if (input.memory.selection === 'custom') {
       const initialGiB = input.memory.value.initialGiB
@@ -323,9 +332,10 @@ export const configureServer = sdk.Action.withInput(
       if (maximumGiB < initialGiB) {
         return {
           version: '1',
-          title: 'Invalid Memory Configuration',
-          message:
+          title: i18n('Invalid Memory Configuration'),
+          message: i18n(
             'Maximum Memory must be greater than or equal to Starting Memory.',
+          ),
           result: null,
         }
       }
@@ -338,34 +348,23 @@ export const configureServer = sdk.Action.withInput(
       resolvedMemory = memoryProfiles[input.memory.selection]
     }
 
-    await storeJson.merge(effects, {
-      gameMode: input.gameMode as
-        | 'survival'
-        | 'creative'
-        | 'adventure'
-        | 'spectator',
-      difficulty: input.difficulty as 'peaceful' | 'easy' | 'normal' | 'hard',
-      memory: resolvedMemory,
-      maxPlayers: input.maxPlayers,
-      viewDistance: input.viewDistance,
-      simulationDistance: input.simulationDistance,
-      onlineMode: input.onlineMode,
-      pvp: input.pvp,
-      allowFlight: input.allowFlight,
-      hardcore: input.hardcore,
-      spawnProtection: input.spawnProtection,
-      pauseWhenEmptySeconds: input.pauseWhenEmptySeconds,
-      motd: input.motd,
-      whitelistEnabled: input.whitelistEnabled,
-      whitelist: existingConfig?.whitelist ?? [],
-    })
+    await storeJson.merge(effects, { memory: resolvedMemory })
 
-    return {
-      version: '1',
-      title: 'Configuration Saved',
-      message:
-        'Configuration saved. Start or restart the service to apply these settings.',
-      result: null,
-    }
+    await serverProperties.merge(effects, {
+      gamemode: input.gameMode,
+      difficulty: input.difficulty,
+      'max-players': input.maxPlayers,
+      'view-distance': input.viewDistance,
+      'simulation-distance': input.simulationDistance,
+      'online-mode': input.onlineMode,
+      pvp: input.pvp,
+      'allow-flight': input.allowFlight,
+      hardcore: input.hardcore,
+      'spawn-protection': input.spawnProtection,
+      'pause-when-empty-seconds': input.pauseWhenEmptySeconds,
+      motd: input.motd,
+      'white-list': input.whitelistEnabled,
+      'enforce-whitelist': input.whitelistEnabled,
+    })
   },
 )
