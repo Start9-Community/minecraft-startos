@@ -5,7 +5,7 @@ export const manifest = setupManifest({
   id: 'minecraft',
   title: 'Minecraft Server',
   license: 'Apache-2.0',
-  packageRepo: 'https://github.com/Scott-Sanderson/minecraft-startos',
+  packageRepo: 'https://github.com/Start9-Community/minecraft-startos',
   upstreamRepo: 'https://github.com/itzg/docker-minecraft-server',
   marketingUrl: 'https://www.minecraft.net/',
   donationUrl: null,
@@ -18,7 +18,7 @@ export const manifest = setupManifest({
     'minecraft-server': {
       source: {
         dockerTag:
-          'itzg/minecraft-server:java25@sha256:847b459c2bc263fe31838eb0b4e3d321d851b9071d94f658439ec53f2db57e6b',
+          'itzg/minecraft-server:java25@sha256:8d5cbace1b377a26c089f31a14865fefc9f7b335a85b95f231af2b958186e2ec',
       },
       arch: ['x86_64', 'aarch64'],
     },
