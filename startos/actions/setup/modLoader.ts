@@ -6,14 +6,52 @@ import {
 import { i18n } from '../../i18n'
 import { sdk } from '../../sdk'
 
-const { InputSpec, Value, Variants } = sdk
+const { InputSpec, Value, Variants, List } = sdk
 
-// Modrinth project slugs, entered comma/space/newline-separated.
-const parseMods = (raw: string | null): string[] =>
-  (raw ?? '')
-    .split(/[\s,]+/)
-    .map((slug) => slug.trim())
-    .filter((slug) => slug.length > 0)
+// Per-mod version selector, mapping to the optional `version` on a stored mod
+// entry: a release channel (beta/alpha) or a pinned version / Modrinth version
+// ID. "release" means no pin (latest stable).
+const versionField = Value.union({
+  name: i18n('Version'),
+  description: i18n(
+    'Which build to install. Pick a pre-release channel for mods that only publish beta/alpha builds (e.g. JEI on newer Minecraft versions).',
+  ),
+  default: 'release',
+  variants: Variants.of({
+    release: {
+      name: i18n('Latest release (recommended)'),
+      spec: InputSpec.of({}),
+    },
+    beta: { name: i18n('Latest beta'), spec: InputSpec.of({}) },
+    alpha: { name: i18n('Latest alpha'), spec: InputSpec.of({}) },
+    pinned: {
+      name: i18n('Pin a specific version'),
+      spec: InputSpec.of({
+        version: Value.text({
+          name: i18n('Version or Modrinth version ID'),
+          required: true,
+          default: null,
+          placeholder: '1.0.1',
+          masked: false,
+        }),
+      }),
+    },
+  }),
+})
+
+// Map a stored version string to the form's version-union value.
+type VersionValue =
+  | { selection: 'release'; value: {} }
+  | { selection: 'beta'; value: {} }
+  | { selection: 'alpha'; value: {} }
+  | { selection: 'pinned'; value: { version: string } }
+
+const toVersionValue = (version: string | undefined): VersionValue =>
+  !version
+    ? { selection: 'release', value: {} }
+    : version === 'beta' || version === 'alpha'
+      ? { selection: version, value: {} }
+      : { selection: 'pinned', value: { version } }
 
 const moddedSpec = InputSpec.of({
   minecraftVersion: Value.text({
@@ -26,16 +64,34 @@ const moddedSpec = InputSpec.of({
     placeholder: '1.21.8',
     masked: false,
   }),
-  mods: Value.text({
-    name: i18n('Mods (Modrinth project slugs)'),
-    description: i18n(
-      'Comma- or newline-separated Modrinth project slugs to install, e.g. "giants-of-the-cretaceous". Required dependencies are downloaded automatically. Every client must install these same mods at the same versions.',
+  mods: Value.list(
+    List.obj(
+      {
+        name: i18n('Mods'),
+        description: i18n(
+          'Mods to install from Modrinth. Dependencies download automatically. Every client must install these same mods at the same versions.',
+        ),
+        default: [],
+      },
+      {
+        spec: InputSpec.of({
+          slug: Value.text({
+            name: i18n('Modrinth Project Slug'),
+            description: i18n(
+              'Modrinth project slug, e.g. "giants-of-the-cretaceous".',
+            ),
+            required: true,
+            default: null,
+            placeholder: 'giants-of-the-cretaceous',
+            masked: false,
+          }),
+          version: versionField,
+        }),
+        displayAs: '{{slug}}',
+        uniqueBy: 'slug',
+      },
     ),
-    required: false,
-    default: null,
-    placeholder: 'giants-of-the-cretaceous',
-    masked: false,
-  }),
+  ),
 })
 
 const loaderVariants = Variants.of({
@@ -90,7 +146,10 @@ export const modLoader = sdk.Action.withInput(
         selection: store.modLoader,
         value: {
           minecraftVersion: store.modMinecraftVersion,
-          mods: store.mods.join('\n'),
+          mods: store.mods.map((mod) => ({
+            slug: mod.slug,
+            version: toVersionValue(mod.version),
+          })),
         },
       },
     }
@@ -104,7 +163,16 @@ export const modLoader = sdk.Action.withInput(
     await storeJson.merge(effects, {
       modLoader: input.loader.selection,
       modMinecraftVersion: input.loader.value.minecraftVersion,
-      mods: parseMods(input.loader.value.mods),
+      mods: input.loader.value.mods.map((mod) => {
+        const version = mod.version
+        if (version.selection === 'pinned') {
+          return { slug: mod.slug, version: version.value.version }
+        }
+        if (version.selection === 'release') {
+          return { slug: mod.slug }
+        }
+        return { slug: mod.slug, version: version.selection }
+      }),
     })
   },
 )

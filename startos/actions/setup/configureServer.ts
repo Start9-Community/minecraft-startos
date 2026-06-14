@@ -11,7 +11,6 @@ import {
   defaultSimulationDistance,
   defaultSpawnProtection,
   defaultViewDistance,
-  defaultWhitelistEnabled,
   serverProperties,
 } from '../../fileModels/server.properties'
 import {
@@ -272,11 +271,6 @@ const inputSpec = InputSpec.of({
     placeholder: defaultMotd,
     masked: false,
   }),
-  whitelistEnabled: Value.toggle({
-    name: i18n('Enable Whitelist'),
-    description: i18n('Only allow whitelisted players to join'),
-    default: defaultWhitelistEnabled,
-  }),
 })
 
 export const configureServer = sdk.Action.withInput(
@@ -320,7 +314,6 @@ export const configureServer = sdk.Action.withInput(
       spawnProtection: props['spawn-protection'],
       pauseWhenEmptySeconds: props['pause-when-empty-seconds'],
       motd: props.motd,
-      whitelistEnabled: props['white-list'],
     }
   },
   async ({ effects, input }) => {
@@ -363,8 +356,8 @@ export const configureServer = sdk.Action.withInput(
       'spawn-protection': input.spawnProtection,
       'pause-when-empty-seconds': input.pauseWhenEmptySeconds,
       motd: input.motd,
-      'white-list': input.whitelistEnabled,
-      'enforce-whitelist': input.whitelistEnabled,
     })
+
+    await effects.restart()
   },
 )

@@ -19,7 +19,7 @@ This package runs a vanilla Minecraft Java Edition server alongside a built-in R
 
 1. Open the service's **Tasks** panel and run the **critical** task **Set Web Admin Password**. This generates a random Web Admin password and shows it to you once — save it to your password manager before leaving the screen. The service cannot start until this is done. The username is `admin`.
 2. Start the service from the **Dashboard** tab. First boot writes a fresh `server.properties` with sane defaults and generates the default world.
-3. (Optional) Run **Configure Server** to adjust game mode, difficulty, memory profile, MOTD, max players, view/simulation distance, PvP, flight, hardcore, online mode, spawn protection, pause-when-empty, or to enable the whitelist. The service restarts automatically to apply the changes.
+3. (Optional) Run **Configure Server** to adjust game mode, difficulty, memory profile, MOTD, max players, view/simulation distance, PvP, flight, hardcore, online mode, spawn protection, or pause-when-empty. The service restarts automatically to apply the changes. (The whitelist is managed separately via **Manage Whitelist**.)
 4. To let players reach the server from the public internet, forward TCP **25565** on your router to your StartOS host. LAN-only and Tor-only play work without any router changes. Pick the address you want each client to use from the **Minecraft Server** interface panel.
 5. Open the **Web Admin** interface in your browser and log in with `admin` plus the password generated in step 1 to send server commands and watch the live log.
 
@@ -62,8 +62,7 @@ Turn **Online Mode** off under **Configure Server** to let clients join without 
 
 ### Whitelist
 
-- **Add to Whitelist** — add a Minecraft username (UUID optional) to the whitelist. Enabling the whitelist via **Configure Server** restricts logins to whitelisted players; the package writes `whitelist.json` for the server to read.
-- **Remove from Whitelist** — remove a player. If the list becomes empty, the whitelist is automatically disabled.
+- **Manage Whitelist** — view the current whitelist, add or remove usernames, and turn enforcement on or off, all in one form. Changes are applied to the running server over RCON (so the server assigns each player's correct UUID and offline players actually match), which means the server must be running. Note: on a LAN-only, offline-mode server the whitelist is not meaningful security — usernames are spoofable regardless.
 
 ### Live stats
 

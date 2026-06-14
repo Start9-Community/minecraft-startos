@@ -60,8 +60,8 @@ The package uses a single volume, `main`, with two distinct subpaths:
 
 StartOS-managed files at the `main` volume root:
 - `server.properties` — canonical Minecraft server config; written by the package's actions and read directly by the daemon
-- `start9/store.json` — package-internal state (memory profile, mod loader/version/mods, whitelisted player list, Web Admin credentials)
-- `whitelist.json` — written when the whitelist is enabled, removed when disabled; generated from the managed whitelist configuration
+- `start9/store.json` — package-internal state (memory profile, mod loader/version/mods, Web Admin credentials)
+- `whitelist.json` — owned by the Minecraft server; (re)written by the server when the **Manage Whitelist** action issues `whitelist` commands over RCON
 
 ---
 
@@ -79,17 +79,19 @@ All gameplay defaults (memory, difficulty, world name, etc.) are sane out of the
 ## Configuration Management
 
 Gameplay/server settings are managed by writing directly to
-`server.properties` via StartOS actions. Memory profile, the whitelisted
-player list, and the Web Admin credentials live in `start9/store.json`
-(no equivalent Minecraft config field exists for them).
+`server.properties` via StartOS actions. Memory profile, mod loader
+settings, and the Web Admin credentials live in `start9/store.json` (no
+equivalent Minecraft config field exists for them). The whitelist is owned
+by the Minecraft server and managed via the **Manage Whitelist** action over
+RCON, so the server assigns each player's mode-correct UUID.
 
 The image is run with `SKIP_SERVER_PROPERTIES=true` so it does not
 regenerate `server.properties` from environment variables. Hand-edits to
 keys the package does not model (`function-permission-level`,
 `network-compression-threshold`, etc.) are preserved across action runs.
 
-Mutating actions (configure server, set Web Admin password, whitelist
-add/remove, world create/select) trigger an automatic restart so the new
+Mutating actions (configure server, set Web Admin password, manage
+whitelist, world create/select) trigger an automatic restart so the new
 state is applied to the running server.
 
 The world seed is set per-world via the **Create World** action — it is not
@@ -134,8 +136,7 @@ Internal-only service ports:
 | `set-web-admin-password` | Generate a random Web Admin password and display it once (required on install) | any |
 | `get-server-info` | Show active server settings and Web Admin username | only-running |
 | `get-live-server-stats` | Query live stats via RCON | only-running |
-| `add-to-whitelist` | Add player and enable whitelist | any |
-| `remove-from-whitelist` | Remove player and auto-disable empty whitelist | any |
+| `manage-whitelist` | View, add, remove, and enable the whitelist (over RCON) | only-running |
 
 ---
 
@@ -207,8 +208,8 @@ ports:
 dependencies: none
 managed_files:
   - server.properties     # written directly by package actions
-  - whitelist.json        # generated when whitelist enabled
-  - start9/store.json     # memory profile, mod loader/version/mods, whitelist players, Web Admin creds
+  - whitelist.json        # owned by the server; written via Manage Whitelist (RCON)
+  - start9/store.json     # memory profile, mod loader/version/mods, Web Admin creds
 minecraft_image_env_vars:
   - EULA
   - TYPE                            # VANILLA | NEOFORGE | FABRIC (store.modLoader)
@@ -228,6 +229,5 @@ actions:
   - set-web-admin-password
   - get-server-info
   - get-live-server-stats
-  - add-to-whitelist
-  - remove-from-whitelist
+  - manage-whitelist
 ```

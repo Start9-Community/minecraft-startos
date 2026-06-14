@@ -1,4 +1,4 @@
-import { rm, writeFile } from 'fs/promises'
+import { writeFile } from 'fs/promises'
 import { serverProperties } from './fileModels/server.properties'
 import { storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
@@ -20,7 +20,6 @@ const minecraftHealthGracePeriod = 30_000
 // opens, so it needs a much longer grace before health failures count.
 const moddedHealthGracePeriod = 300_000
 const vanillaVersion = '26.1.2'
-const whitelistPath = sdk.volumes.main.subpath('whitelist.json')
 
 const proxyConfig = ({
   proxyPort,
@@ -92,13 +91,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
     throw new Error('no server.properties')
   }
 
-  // Keep whitelist.json in sync with the configured player list.
-  if (props['white-list']) {
-    await writeFile(whitelistPath, JSON.stringify(store.whitelist, null, 2))
-  } else {
-    await rm(whitelistPath, { force: true })
-  }
-
   const rconProxySub = await sdk.SubContainer.of(
     effects,
     { imageId: 'rcon-proxy' },
@@ -142,8 +134,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
   }
   if (isModded && store.mods.length > 0) {
     // itzg auto-downloads these Modrinth projects (and their required deps)
-    // into /data/mods on top of the installed loader.
-    minecraftEnv.MODRINTH_PROJECTS = store.mods.join(',')
+    // into /data/mods on top of the installed loader. A mod may pin a version,
+    // version ID, or channel via `slug:version` (e.g. `jei:beta`).
+    minecraftEnv.MODRINTH_PROJECTS = store.mods
+      .map((mod) => (mod.version ? `${mod.slug}:${mod.version}` : mod.slug))
+      .join(',')
     minecraftEnv.MODRINTH_DOWNLOAD_DEPENDENCIES = 'required'
   }
 
