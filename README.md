@@ -37,7 +37,8 @@ Web Admin experience.
 
 | Image | Role | Source |
 | --- | --- | --- |
-| `minecraft-server` | Minecraft Java Edition server | Upstream Docker image (`itzg/minecraft-server`), pinned by digest in `startos/manifest/index.ts` |
+| `minecraft-server` | Vanilla Minecraft Java Edition server (Java 25) | Upstream Docker image (`itzg/minecraft-server:java25`), pinned by digest in `startos/manifest/index.ts` |
+| `minecraft-server-java21` | Minecraft server for modded loaders (NeoForge/Fabric), which require Java 21 | Upstream Docker image (`itzg/minecraft-server:java21`), pinned by digest in `startos/manifest/index.ts` |
 | `rcon` | RCON Web Admin sidecar | Built from `rcon.Dockerfile` (extends upstream `itzg/rcon`, applies patches in `docker/rcon/`) |
 | `rcon-proxy` | nginx reverse proxy in front of the RCON Web Admin UI and websocket | Upstream `nginx:alpine` |
 
@@ -59,7 +60,7 @@ The package uses a single volume, `main`, with two distinct subpaths:
 
 StartOS-managed files at the `main` volume root:
 - `server.properties` — canonical Minecraft server config; written by the package's actions and read directly by the daemon
-- `start9/store.json` — package-internal state (memory profile, whitelisted player list, Web Admin credentials)
+- `start9/store.json` — package-internal state (memory profile, mod loader/version/mods, whitelisted player list, Web Admin credentials)
 - `whitelist.json` — written when the whitelist is enabled, removed when disabled; generated from the managed whitelist configuration
 
 ---
@@ -95,6 +96,13 @@ The world seed is set per-world via the **Create World** action — it is not
 exposed in the global **Configure Server** form, since changing it on a
 populated world has no effect.
 
+The **Mod Loader** action selects vanilla (default), NeoForge, or Fabric and
+persists the choice — plus Minecraft version and a list of Modrinth project
+slugs — in `start9/store.json`. Vanilla runs on the `minecraft-server` image;
+NeoForge/Fabric run on the `minecraft-server-java21` image. When a modded
+loader is selected, `main.ts` sets `TYPE`/`VERSION` accordingly and installs
+mods via `MODRINTH_PROJECTS` (with `MODRINTH_DOWNLOAD_DEPENDENCIES=required`).
+
 ---
 
 ## Network Access and Interfaces
@@ -118,6 +126,7 @@ Internal-only service ports:
 | Action ID | Purpose | Availability |
 | --- | --- | --- |
 | `configure-server` | Configure gameplay/server settings | any |
+| `mod-loader` | Select vanilla/NeoForge/Fabric and install Modrinth mods | any |
 | `list-worlds` | Inspect saved worlds and metadata | any |
 | `create-world` | Stage a new world name/seed | any |
 | `select-world` | Switch active world | any |
@@ -149,7 +158,7 @@ Internal-only service ports:
 
 | Check | Method | Notes |
 | --- | --- | --- |
-| `minecraft-server` | Port listening on `25565`, then RCON `25575` | 30s grace period |
+| `minecraft-server` | Port listening on `25565`, then RCON `25575` | 30s grace (vanilla); 300s for modded first boot (loader + mod download) |
 | `rcon-admin` | Port listening on `4326` | Sidecar readiness |
 | `rcon-proxy` | Port listening on `8080` | User-facing Web Admin path |
 
@@ -163,7 +172,7 @@ None.
 
 ## Limitations and Differences
 
-1. This package targets vanilla Java Edition behavior via `itzg/minecraft-server`; advanced upstream modes (mod loaders/proxy stacks) are not surfaced as StartOS actions.
+1. NeoForge and Fabric mod loaders are surfaced via the **Mod Loader** action (on a bundled Java 21 image); modded Minecraft versions are limited to the Java 21 range (1.20.5–1.21.x). Other upstream modes (Forge, proxy stacks, Spigot/Paper plugins) are not yet surfaced as StartOS actions.
 2. Configuration is package-managed: actions write `server.properties` directly. The image's env-var-driven configuration is bypassed via `SKIP_SERVER_PROPERTIES=true`.
 3. Web admin access is routed through an internal nginx proxy and exposed as a dedicated StartOS interface.
 4. There is no default Web Admin password. The service blocks startup until the user runs the **Set Web Admin Password** action, which generates a random password and displays it once.
@@ -199,16 +208,19 @@ dependencies: none
 managed_files:
   - server.properties     # written directly by package actions
   - whitelist.json        # generated when whitelist enabled
-  - start9/store.json     # memory profile, whitelist players, Web Admin creds
+  - start9/store.json     # memory profile, mod loader/version/mods, whitelist players, Web Admin creds
 minecraft_image_env_vars:
   - EULA
-  - TYPE
-  - VERSION
+  - TYPE                            # VANILLA | NEOFORGE | FABRIC (store.modLoader)
+  - VERSION                         # 26.1.2 (vanilla) or store.modMinecraftVersion
   - INIT_MEMORY
   - MAX_MEMORY
   - SKIP_SERVER_PROPERTIES
+  - MODRINTH_PROJECTS               # modded only, when mods are configured
+  - MODRINTH_DOWNLOAD_DEPENDENCIES  # modded only ("required")
 actions:
   - configure-server
+  - mod-loader
   - list-worlds
   - create-world
   - select-world
