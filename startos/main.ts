@@ -130,6 +130,12 @@ export const main = sdk.setupMain(async ({ effects }) => {
     VERSION: isModded ? store.modMinecraftVersion : vanillaVersion,
     INIT_MEMORY: store.memory.initial,
     MAX_MEMORY: store.memory.maximum,
+    // Hand the image our managed RCON password so mc-server-runner can stop the
+    // server over RCON on restart. Without it, RCON stop fails auth; vanilla
+    // falls back to writing `stop` to the console, but modded servers run under
+    // a run.sh wrapper where that also fails, so the JVM is SIGKILLed after the
+    // termination grace instead of saving and exiting cleanly.
+    RCON_PASSWORD: props['rcon.password'],
     // We manage server.properties directly via the serverProperties
     // FileHelper; tell the image not to regenerate it from env vars.
     SKIP_SERVER_PROPERTIES: 'TRUE',
