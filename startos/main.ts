@@ -16,6 +16,10 @@ import {
 // volume subpath onto its /db directory for persistence.
 const rconWebAdminDbPath = '/opt/rcon-web-admin-0.14.1/db'
 const minecraftHealthGracePeriod = 30_000
+// Modded first boot installs the loader and downloads mods before the port
+// opens, so it needs a much longer grace before health failures count.
+const moddedHealthGracePeriod = 300_000
+const vanillaVersion = '26.1.2'
 const whitelistPath = sdk.volumes.main.subpath('whitelist.json')
 
 const proxyConfig = ({
@@ -111,11 +115,37 @@ export const main = sdk.setupMain(async ({ effects }) => {
     }),
   )
 
+  const isModded = store.modLoader !== 'vanilla'
+  const minecraftImageId = isModded
+    ? 'minecraft-server-java21'
+    : 'minecraft-server'
+
+  const minecraftEnv: Record<string, string> = {
+    EULA: 'TRUE',
+    TYPE: { vanilla: 'VANILLA', neoforge: 'NEOFORGE', fabric: 'FABRIC' }[
+      store.modLoader
+    ],
+    // Vanilla is pinned to the package's shipped version; modded versions are
+    // user-selected (must be within the java21 image's supported range).
+    VERSION: isModded ? store.modMinecraftVersion : vanillaVersion,
+    INIT_MEMORY: store.memory.initial,
+    MAX_MEMORY: store.memory.maximum,
+    // We manage server.properties directly via the serverProperties
+    // FileHelper; tell the image not to regenerate it from env vars.
+    SKIP_SERVER_PROPERTIES: 'TRUE',
+  }
+  if (isModded && store.mods.length > 0) {
+    // itzg auto-downloads these Modrinth projects (and their required deps)
+    // into /data/mods on top of the installed loader.
+    minecraftEnv.MODRINTH_PROJECTS = store.mods.join(',')
+    minecraftEnv.MODRINTH_DOWNLOAD_DEPENDENCIES = 'required'
+  }
+
   return sdk.Daemons.of(effects)
     .addDaemon('minecraft-server', {
       subcontainer: await sdk.SubContainer.of(
         effects,
-        { imageId: 'minecraft-server' },
+        { imageId: minecraftImageId },
         sdk.Mounts.of().mountVolume({
           volumeId: 'main',
           subpath: null,
@@ -126,20 +156,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
       ),
       exec: {
         command: sdk.useEntrypoint(),
-        env: {
-          EULA: 'TRUE',
-          TYPE: 'VANILLA',
-          VERSION: '26.1.2',
-          INIT_MEMORY: store.memory.initial,
-          MAX_MEMORY: store.memory.maximum,
-          // We manage server.properties directly via the serverProperties
-          // FileHelper; tell the image not to regenerate it from env vars.
-          SKIP_SERVER_PROPERTIES: 'TRUE',
-        },
+        env: minecraftEnv,
       },
       ready: {
         display: i18n('Minecraft Server'),
-        gracePeriod: minecraftHealthGracePeriod,
+        gracePeriod: isModded
+          ? moddedHealthGracePeriod
+          : minecraftHealthGracePeriod,
         fn: async () => {
           const minecraftStatus = await sdk.healthCheck.checkPortListening(
             effects,

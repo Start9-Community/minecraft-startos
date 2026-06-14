@@ -77,6 +77,18 @@ const dict = {
   'Invalid Memory Configuration': 147,
   'Maximum Memory must be greater than or equal to Starting Memory.': 148,
 
+  // actions/setup/modLoader.ts
+  'Mod Loader': 150,
+  'Choose vanilla, NeoForge, or Fabric and install mods': 151,
+  'Changing the loader or Minecraft version swaps the server engine. Existing worlds may not load — create a new world after switching. Every player must install the EXACT same loader, Minecraft version, and mods in their client (e.g. via Prism Launcher) or they cannot connect. Modded servers also need more memory — set Standard or High under Configure Server.': 152,
+  'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric run an older, mod-compatible Minecraft on a Java 21 runtime and let you install mods.': 153,
+  'Vanilla (no mods) — default': 154,
+  'NeoForge (recommended for mods)': 155,
+  Fabric: 156,
+  'Minecraft version for the modded server. Must be supported by the loader and your mods, and within the bundled Java 21 range (1.20.5–1.21.x). Every client must run this exact version.': 157,
+  'Mods (Modrinth project slugs)': 158,
+  'Comma- or newline-separated Modrinth project slugs to install, e.g. "giants-of-the-cretaceous". Required dependencies are downloaded automatically. Every client must install these same mods at the same versions.': 159,
+
   // actions/listWorlds.ts
   'List Worlds': 200,
   'List saved worlds with metadata and show which world is currently configured': 201,
