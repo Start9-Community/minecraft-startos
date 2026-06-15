@@ -86,8 +86,17 @@ const dict = {
   'NeoForge (recommended for mods)': 155,
   Fabric: 156,
   'Minecraft version for the modded server. Must be supported by the loader and your mods, and within the bundled Java 21 range (1.20.5–1.21.x). Every client must run this exact version.': 157,
-  'Mods (Modrinth project slugs)': 158,
-  'Comma- or newline-separated Modrinth project slugs to install, e.g. "giants-of-the-cretaceous". Required dependencies are downloaded automatically. Every client must install these same mods at the same versions.': 159,
+  Mods: 158,
+  'Mods to install from Modrinth. Dependencies download automatically. Every client must install these same mods at the same versions.': 159,
+  'Modrinth Project Slug': 160,
+  'Modrinth project slug, e.g. "giants-of-the-cretaceous".': 161,
+  Version: 162,
+  'Which build to install. Pick a pre-release channel for mods that only publish beta/alpha builds (e.g. JEI on newer Minecraft versions).': 163,
+  'Latest release (recommended)': 164,
+  'Latest beta': 165,
+  'Latest alpha': 166,
+  'Pin a specific version': 167,
+  'Version or Modrinth version ID': 168,
 
   // actions/listWorlds.ts
   'List Worlds': 200,
@@ -208,23 +217,12 @@ const dict = {
   '🌓 First Quarter': 466,
   '🌔 Waxing Gibbous': 467,
 
-  // actions/addToWhitelist.ts
-  'Add to Whitelist': 410,
-  'Add a player to the server whitelist': 411,
-  'Player Name': 413,
-  'Minecraft username to whitelist': 414,
-  'Player UUID (Optional)': 415,
-  'Minecraft player UUID (optional, leave blank if unknown)': 416,
-  'Player Already Whitelisted': 417,
-  'Adding the first player automatically enabled the whitelist. Only whitelisted players can now join.': 418,
-
-  // actions/removeFromWhitelist.ts
-  'Remove from Whitelist': 421,
-  'Remove a player from the server whitelist': 422,
-  'Minecraft username to remove from whitelist': 423,
-  'Player Not Found': 424,
-  'Whitelist Disabled': 425,
-  'Removing the last player automatically disabled the whitelist. Any player can now join.': 426,
+  // actions/manageWhitelist.ts
+  'Manage Whitelist': 410,
+  'View, add, remove, and enforce the player whitelist': 411,
+  'Minecraft usernames permitted to join when the whitelist is enforced.': 412,
+  'Minecraft usernames are 1-16 characters: letters, numbers, and underscores.': 413,
+  'Unable to Reach Server': 414,
 } as const
 
 /**

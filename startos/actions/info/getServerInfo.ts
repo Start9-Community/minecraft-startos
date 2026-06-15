@@ -88,18 +88,6 @@ export const getServerInfo = sdk.Action.withoutInput(
             masked: false,
           },
           {
-            name: i18n('Whitelisted Players'),
-            description: null,
-            type: 'single' as const,
-            value:
-              store.whitelist.length > 0
-                ? store.whitelist.map((p) => p.name).join(', ')
-                : i18n('None'),
-            copyable: false,
-            qr: false,
-            masked: false,
-          },
-          {
             name: i18n('Username'),
             description: i18n(
               'Access the Web Admin UI through the "Web Admin" interface in StartOS.',

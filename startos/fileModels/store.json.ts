@@ -10,15 +10,19 @@ export type ModLoader = z.infer<typeof modLoaderSchema>
 export const defaultModLoader: ModLoader = 'vanilla'
 export const defaultModMinecraftVersion = '1.21.8'
 
-export type WhitelistEntry = {
-  name: string
-  uuid?: string
-}
+// A mod is a Modrinth project slug plus an optional version — a version
+// number, a Modrinth version ID, or a release channel (release/beta/alpha).
+// Older stores held a bare slug string; accept that and normalize it.
+export const modEntrySchema = z
+  .union([
+    z.string(),
+    z.object({ slug: z.string(), version: z.string().optional() }),
+  ])
+  .transform((entry): { slug: string; version?: string } =>
+    typeof entry === 'string' ? { slug: entry } : entry,
+  )
 
-const whitelistEntrySchema = z.object({
-  name: z.string(),
-  uuid: z.string().optional().catch(undefined),
-})
+export type ModEntry = z.infer<typeof modEntrySchema>
 
 const memorySchema = z
   .object({
@@ -32,14 +36,13 @@ const memorySchema = z
 
 const storeConfigSchema = z.object({
   memory: memorySchema,
-  whitelist: z.array(whitelistEntrySchema).catch([]),
   webAdminUsername: z.string().catch(defaultWebAdminUsername),
   webAdminPassword: z.string().optional().catch(undefined),
   // Modded config (only used when modLoader !== 'vanilla'); see
-  // actions/setup/modLoader.ts and main.ts. mods are Modrinth project slugs.
+  // actions/setup/modLoader.ts and main.ts.
   modLoader: modLoaderSchema.catch(defaultModLoader),
   modMinecraftVersion: z.string().catch(defaultModMinecraftVersion),
-  mods: z.array(z.string()).catch([]),
+  mods: z.array(modEntrySchema).catch([]),
 })
 
 export type StoreConfig = z.infer<typeof storeConfigSchema>
