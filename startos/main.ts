@@ -91,15 +91,16 @@ export const main = sdk.setupMain(async ({ effects }) => {
     throw new Error('no server.properties')
   }
 
-  const rconProxySub = await sdk.SubContainer.of(
+  const rconProxySub = sdk.SubContainer.of(
     effects,
     { imageId: 'rcon-proxy' },
     null,
     'rcon-proxy-sub',
   )
 
+  const rconProxyRootfs = await rconProxySub.rootfs
   await writeFile(
-    `${rconProxySub.rootfs}/etc/nginx/conf.d/default.conf`,
+    `${rconProxyRootfs}/etc/nginx/conf.d/default.conf`,
     proxyConfig({
       proxyPort: webAdminProxyPort,
       upstreamPort: webAdminPort,
@@ -144,7 +145,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   return sdk.Daemons.of(effects)
     .addDaemon('minecraft-server', {
-      subcontainer: await sdk.SubContainer.of(
+      subcontainer: sdk.SubContainer.of(
         effects,
         { imageId: minecraftImageId },
         sdk.Mounts.of().mountVolume({
@@ -187,7 +188,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
       requires: [],
     })
     .addDaemon('rcon-admin', {
-      subcontainer: await sdk.SubContainer.of(
+      subcontainer: sdk.SubContainer.of(
         effects,
         { imageId: 'rcon' },
         sdk.Mounts.of().mountVolume({
