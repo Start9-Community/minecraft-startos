@@ -19,7 +19,7 @@ const minecraftHealthGracePeriod = 30_000
 // Modded first boot installs the loader and downloads mods before the port
 // opens, so it needs a much longer grace before health failures count.
 const moddedHealthGracePeriod = 300_000
-const vanillaVersion = '26.1.2'
+const vanillaVersion = '26.2'
 
 const proxyConfig = ({
   proxyPort,

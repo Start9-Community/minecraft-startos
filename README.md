@@ -213,7 +213,7 @@ managed_files:
 minecraft_image_env_vars:
   - EULA
   - TYPE                            # VANILLA | NEOFORGE | FABRIC (store.modLoader)
-  - VERSION                         # 26.1.2 (vanilla) or store.modMinecraftVersion
+  - VERSION                         # vanilla Minecraft version, or store.modMinecraftVersion
   - INIT_MEMORY
   - MAX_MEMORY
   - SKIP_SERVER_PROPERTIES

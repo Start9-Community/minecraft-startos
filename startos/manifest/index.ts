@@ -18,11 +18,11 @@ export const manifest = setupManifest({
     'minecraft-server': {
       source: {
         dockerTag:
-          'itzg/minecraft-server:java25@sha256:8d5cbace1b377a26c089f31a14865fefc9f7b335a85b95f231af2b958186e2ec',
+          'itzg/minecraft-server:java25@sha256:2e7c7b7641a8f30e70fa8d357bc2ad1c029cb56c93ca7f39af08713166c755ca',
       },
       arch: ['x86_64', 'aarch64'],
     },
-    // Modded loaders (NeoForge/Fabric) target Java 21; vanilla 26.1.2 needs
+    // Modded loaders (NeoForge/Fabric) target Java 21; vanilla 26.2 needs
     // Java 25. main.ts selects the image to match the configured loader.
     'minecraft-server-java21': {
       source: {
