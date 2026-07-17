@@ -6,7 +6,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@start9labs/start-sdk": "2.0.5",
+    "@start9labs/start-sdk": "2.0.6",
     "prismarine-nbt": "^2.8.0"
   },
   "devDependencies": {
