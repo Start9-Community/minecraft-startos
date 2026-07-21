@@ -18,16 +18,16 @@ export const manifest = setupManifest({
     'minecraft-server': {
       source: {
         dockerTag:
-          'itzg/minecraft-server:java25@sha256:8d5cbace1b377a26c089f31a14865fefc9f7b335a85b95f231af2b958186e2ec',
+          'itzg/minecraft-server:java25@sha256:638a65accaafff86d395de28abf71cf28b02d193b59c9301c58ccec0f88da48b',
       },
       arch: ['x86_64', 'aarch64'],
     },
-    // Modded loaders (NeoForge/Fabric) target Java 21; vanilla 26.1.2 needs
+    // Modded loaders (NeoForge/Fabric) target Java 21; vanilla 26.2 needs
     // Java 25. main.ts selects the image to match the configured loader.
     'minecraft-server-java21': {
       source: {
         dockerTag:
-          'itzg/minecraft-server:java21@sha256:79076762d915374272c088a0411769b3747ba3eff6290cf9de9dd4ed8ca961a5',
+          'itzg/minecraft-server:java21@sha256:8303efba7426ce16247df0d3eab4f0514ad97f8f6e0a11d1b536f30a4cec2846',
       },
       arch: ['x86_64', 'aarch64'],
     },
@@ -36,7 +36,7 @@ export const manifest = setupManifest({
       arch: ['x86_64', 'aarch64'],
     },
     'rcon-proxy': {
-      source: { dockerTag: 'nginx:1.27-alpine' },
+      source: { dockerTag: 'nginx:1.30-alpine' },
       arch: ['x86_64', 'aarch64'],
     },
   },
