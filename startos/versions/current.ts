@@ -1,7 +1,7 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '26.2:1',
+  version: '26.2:2',
   releaseNotes: {
     en_US: `Package maintenance update. Minecraft itself is unchanged at 26.2 ("Chaos Cubed").
 
