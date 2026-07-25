@@ -35,16 +35,16 @@ Web Admin experience.
 
 ## Image and Container Runtime
 
-| Image | Role | Source |
-| --- | --- | --- |
-| `minecraft-server` | Vanilla Minecraft Java Edition server (Java 25) | Upstream Docker image (`itzg/minecraft-server:java25`), pinned by digest in `startos/manifest/index.ts` |
+| Image                     | Role                                                                         | Source                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `minecraft-server`        | Vanilla Minecraft Java Edition server (Java 25)                              | Upstream Docker image (`itzg/minecraft-server:java25`), pinned by digest in `startos/manifest/index.ts` |
 | `minecraft-server-java21` | Minecraft server for modded loaders (NeoForge/Fabric), which require Java 21 | Upstream Docker image (`itzg/minecraft-server:java21`), pinned by digest in `startos/manifest/index.ts` |
-| `rcon` | RCON Web Admin sidecar | Built from `rcon.Dockerfile` (extends upstream `itzg/rcon`, applies patches in `docker/rcon/`) |
-| `rcon-proxy` | nginx reverse proxy in front of the RCON Web Admin UI and websocket | Upstream `nginx:alpine` |
+| `rcon`                    | RCON Web Admin sidecar                                                       | Built from `rcon.Dockerfile` (extends upstream `itzg/rcon`, applies patches in `docker/rcon/`)          |
+| `rcon-proxy`              | nginx reverse proxy in front of the RCON Web Admin UI and websocket          | Upstream `nginx:alpine`                                                                                 |
 
-| Property | Value |
-| --- | --- |
-| Architectures | x86_64, aarch64 |
+| Property      | Value                                                                |
+| ------------- | -------------------------------------------------------------------- |
+| Architectures | x86_64, aarch64                                                      |
 | Entry command | Upstream entrypoint (`sdk.useEntrypoint()`) for all three containers |
 
 ---
@@ -53,12 +53,13 @@ Web Admin experience.
 
 The package uses a single volume, `main`, with two distinct subpaths:
 
-| Subpath in `main` volume | Container mount point | Purpose |
-| --- | --- | --- |
-| (volume root) | `/data` (minecraft container) | World saves, server files, StartOS-managed files |
-| `rcon-db/` | `/opt/rcon-web-admin-<version>/db` (rcon container) | RCON Web Admin SQLite DB and session state |
+| Subpath in `main` volume | Container mount point                               | Purpose                                          |
+| ------------------------ | --------------------------------------------------- | ------------------------------------------------ |
+| (volume root)            | `/data` (minecraft container)                       | World saves, server files, StartOS-managed files |
+| `rcon-db/`               | `/opt/rcon-web-admin-<version>/db` (rcon container) | RCON Web Admin SQLite DB and session state       |
 
 StartOS-managed files at the `main` volume root:
+
 - `server.properties` — canonical Minecraft server config; written by the package's actions and read directly by the daemon
 - `start9/store.json` — package-internal state (memory profile, mod loader/version/mods, Web Admin credentials)
 - `whitelist.json` — owned by the Minecraft server; (re)written by the server when the **Manage Whitelist** action issues `whitelist` commands over RCON
@@ -68,6 +69,7 @@ StartOS-managed files at the `main` volume root:
 ## Installation and First-Run Flow
 
 On first install, the package:
+
 1. Seeds `server.properties` with sane defaults and generates a strong random RCON password (used internally by the Web Admin sidecar).
 2. Creates one onboarding task:
    - **critical**: Set Web Admin Password — runs the action to generate a random Web Admin password and display it once. The service cannot start until this has been done.
@@ -109,14 +111,15 @@ mods via `MODRINTH_PROJECTS` (with `MODRINTH_DOWNLOAD_DEPENDENCIES=required`).
 
 ## Network Access and Interfaces
 
-| Interface ID | Port | Protocol | Purpose |
-| --- | --- | --- | --- |
-| `minecraft-server` | 25565 | TCP | Minecraft Java Edition client connections |
-| `web-admin` | 8080 | HTTP | RCON Web Admin UI (proxied) |
+| Interface ID       | Port  | Protocol | Purpose                                   |
+| ------------------ | ----- | -------- | ----------------------------------------- |
+| `minecraft-server` | 25565 | TCP      | Minecraft Java Edition client connections |
+| `web-admin`        | 8080  | HTTP     | RCON Web Admin UI (proxied)               |
 
 Choose your preferred connection address from the **Interfaces** page in StartOS.
 
 Internal-only service ports:
+
 - `25575` RCON endpoint (used by sidecars/actions)
 - `4326` RCON Web Admin service
 - `4327` RCON Web Admin websocket backend
@@ -125,31 +128,34 @@ Internal-only service ports:
 
 ## Actions (StartOS UI)
 
-| Action ID | Purpose | Availability |
-| --- | --- | --- |
-| `configure-server` | Configure gameplay/server settings | any |
-| `mod-loader` | Select vanilla/NeoForge/Fabric and install Modrinth mods | any |
-| `list-worlds` | Inspect saved worlds and metadata | any |
-| `create-world` | Stage a new world name/seed | any |
-| `select-world` | Switch active world | any |
-| `delete-world` | Permanently delete a world save | only-stopped |
-| `set-web-admin-password` | Generate a random Web Admin password and display it once (required on install) | any |
-| `get-server-info` | Show active server settings and Web Admin username | only-running |
-| `get-live-server-stats` | Query live stats via RCON | only-running |
-| `manage-whitelist` | View, add, remove, and enable the whitelist (over RCON) | only-running |
+| Action ID                | Purpose                                                                        | Availability |
+| ------------------------ | ------------------------------------------------------------------------------ | ------------ |
+| `configure-server`       | Configure gameplay/server settings                                             | any          |
+| `mod-loader`             | Select vanilla/NeoForge/Fabric and install Modrinth mods                       | any          |
+| `list-worlds`            | Inspect saved worlds and metadata                                              | any          |
+| `create-world`           | Stage a new world name/seed                                                    | any          |
+| `select-world`           | Switch active world                                                            | any          |
+| `delete-world`           | Permanently delete a world save                                                | only-stopped |
+| `set-web-admin-password` | Generate a random Web Admin password and display it once (required on install) | any          |
+| `get-server-info`        | Show active server settings and Web Admin username                             | only-running |
+| `get-live-server-stats`  | Query live stats via RCON                                                      | only-running |
+| `manage-whitelist`       | View, add, remove, and enable the whitelist (over RCON)                        | only-running |
 
 ---
 
 ## Backups and Restore
 
 **Included in backup:**
+
 - `main` volume
 
 **Pre-backup behavior:**
+
 - If the server is running, package issues `save-all flush` over RCON before
   snapshot creation.
 
 **Restore behavior:**
+
 - Standard StartOS restore flow is used (`restoreInit`) and package init tasks
   are re-registered where applicable.
 
@@ -157,11 +163,11 @@ Internal-only service ports:
 
 ## Health Checks
 
-| Check | Method | Notes |
-| --- | --- | --- |
+| Check              | Method                                       | Notes                                                                   |
+| ------------------ | -------------------------------------------- | ----------------------------------------------------------------------- |
 | `minecraft-server` | Port listening on `25565`, then RCON `25575` | 30s grace (vanilla); 300s for modded first boot (loader + mod download) |
-| `rcon-admin` | Port listening on `4326` | Sidecar readiness |
-| `rcon-proxy` | Port listening on `8080` | User-facing Web Admin path |
+| `rcon-admin`       | Port listening on `4326`                     | Sidecar readiness                                                       |
+| `rcon-proxy`       | Port listening on `8080`                     | User-facing Web Admin path                                              |
 
 ---
 
@@ -189,7 +195,7 @@ None.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local build, install, and release workflow details.
+Build and development workflow follow the StartOS packaging guide: <https://docs.start9.com/packaging>. Keep `README.md`, `instructions.md`, and `AGENTS.md` in sync with any change to user-visible behavior or package structure.
 
 ---
 
@@ -200,25 +206,25 @@ package_id: minecraft
 architectures: [x86_64, aarch64]
 volumes:
   main:
-    root: /data            # mount in minecraft container
-    rcon-db: /opt/rcon-web-admin-<version>/db  # subpath mount in rcon container
+    root: /data # mount in minecraft container
+    rcon-db: /opt/rcon-web-admin-<version>/db # subpath mount in rcon container
 ports:
   minecraft-server: 25565
   web-admin: 8080
 dependencies: none
 managed_files:
-  - server.properties     # written directly by package actions
-  - whitelist.json        # owned by the server; written via Manage Whitelist (RCON)
-  - start9/store.json     # memory profile, mod loader/version/mods, Web Admin creds
+  - server.properties # written directly by package actions
+  - whitelist.json # owned by the server; written via Manage Whitelist (RCON)
+  - start9/store.json # memory profile, mod loader/version/mods, Web Admin creds
 minecraft_image_env_vars:
   - EULA
-  - TYPE                            # VANILLA | NEOFORGE | FABRIC (store.modLoader)
-  - VERSION                         # vanilla Minecraft version, or store.modMinecraftVersion
+  - TYPE # VANILLA | NEOFORGE | FABRIC (store.modLoader)
+  - VERSION # vanilla Minecraft version, or store.modMinecraftVersion
   - INIT_MEMORY
   - MAX_MEMORY
   - SKIP_SERVER_PROPERTIES
-  - MODRINTH_PROJECTS               # modded only, when mods are configured
-  - MODRINTH_DOWNLOAD_DEPENDENCIES  # modded only ("required")
+  - MODRINTH_PROJECTS # modded only, when mods are configured
+  - MODRINTH_DOWNLOAD_DEPENDENCIES # modded only ("required")
 actions:
   - configure-server
   - mod-loader
