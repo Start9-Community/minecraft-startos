@@ -6,7 +6,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@start9labs/start-sdk": "2.0.7",
+    "@start9labs/start-sdk": "2.0.9",
     "prismarine-nbt": "^2.8.0"
   },
   "devDependencies": {
@@ -38,5 +38,8 @@
   "bugs": {
     "url": "https://github.com/Scott-Sanderson/minecraft-startos/issues"
   },
-  "homepage": "https://github.com/Scott-Sanderson/minecraft-startos#readme"
+  "homepage": "https://github.com/Scott-Sanderson/minecraft-startos#readme",
+  "overrides": {
+    "@start9labs/start-sdk": "$@start9labs/start-sdk"
+  }
 }
