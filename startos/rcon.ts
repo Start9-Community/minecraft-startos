@@ -49,7 +49,9 @@ export class RconConnection {
       socket.once('error', (error) => {
         clearTimeout(timeout)
         reject(
-          new Error(`Failed to connect to RCON at ${host}:${port}: ${error.message}`),
+          new Error(
+            `Failed to connect to RCON at ${host}:${port}: ${error.message}`,
+          ),
         )
       })
 

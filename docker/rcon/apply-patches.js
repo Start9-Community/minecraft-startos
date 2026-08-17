@@ -8,7 +8,9 @@ const replaceInFile = ({ relativePath, from, to }) => {
   const content = fs.readFileSync(filePath, 'utf8')
 
   if (!content.includes(from)) {
-    throw new Error(`Failed to patch ${relativePath}: expected snippet not found`)
+    throw new Error(
+      `Failed to patch ${relativePath}: expected snippet not found`,
+    )
   }
 
   fs.writeFileSync(filePath, content.replace(from, to))

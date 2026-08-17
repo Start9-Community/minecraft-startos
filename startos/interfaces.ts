@@ -1,16 +1,8 @@
 import { sdk } from './sdk'
 import { i18n } from './i18n'
 import { gamePort, webAdminProxyPort } from './utils'
-import {
-  defaultWebAdminUsername,
-  storeJson,
-} from './fileModels/store.json'
 
 export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
-  const webAdminUsername =
-    (await storeJson.read((s) => s.webAdminUsername).const(effects)) ??
-    defaultWebAdminUsername
-
   // Web Admin Interface
   const webAdminMulti = sdk.MultiHost.of(effects, 'web-admin-multi')
   const webAdminOrigin = await webAdminMulti.bindPort(webAdminProxyPort, {
@@ -23,7 +15,10 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     type: 'ui',
     masked: false,
     schemeOverride: null,
-    username: webAdminUsername,
+    // rcon-web-admin authenticates with its own form, so userinfo in the URL
+    // buys nothing — and Chromium-based browsers strip or refuse it in a
+    // top-level navigation, which would break the launch link.
+    username: null,
     path: '',
     query: {},
   })

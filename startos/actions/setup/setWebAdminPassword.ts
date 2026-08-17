@@ -1,8 +1,5 @@
 import { utils } from '@start9labs/start-sdk'
-import {
-  defaultWebAdminUsername,
-  storeJson,
-} from '../../fileModels/store.json'
+import { defaultWebAdminUsername, storeJson } from '../../fileModels/store.json'
 import { i18n } from '../../i18n'
 import { sdk } from '../../sdk'
 

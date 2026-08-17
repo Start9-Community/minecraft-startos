@@ -18,7 +18,7 @@ export const manifest = setupManifest({
     'minecraft-server': {
       source: {
         dockerTag:
-          'itzg/minecraft-server:java25@sha256:638a65accaafff86d395de28abf71cf28b02d193b59c9301c58ccec0f88da48b',
+          'itzg/minecraft-server:java25@sha256:2fe790e54fc0138ab9f011b38473c11161984b911d32ebfd6877f7411f736937',
       },
       arch: ['x86_64', 'aarch64'],
     },
@@ -27,7 +27,7 @@ export const manifest = setupManifest({
     'minecraft-server-java21': {
       source: {
         dockerTag:
-          'itzg/minecraft-server:java21@sha256:8303efba7426ce16247df0d3eab4f0514ad97f8f6e0a11d1b536f30a4cec2846',
+          'itzg/minecraft-server:java21@sha256:4e233c1ae0231918cdff527c5d9be42eafb52c4eb0a5cf2e631e5d2305bd89f6',
       },
       arch: ['x86_64', 'aarch64'],
     },
