@@ -6,12 +6,12 @@ Develop it inside a StartOS packaging workspace created by `start-cli s9pk init-
 which provides the packaging guide and agent context one level up. If you're reading this in a
 bare clone with no workspace, the full guide is at <https://docs.start9.com/packaging>.
 
-Work this package's `TODO.md` from top to bottom. Keep `README.md` (architecture, for developers and LLMs) and `instructions.md` (end-user docs) in sync with your changes.
+Work this package's `TODO.md` from top to bottom. Keep `README.md` (technical reference for an AI support or administering agent) and `instructions.md` (end-user docs) in sync with your changes.
 
 ## This repo
 
-- **Package id is `minecraft`.** A vanilla Java Edition Minecraft server (optional NeoForge/Fabric mod loaders) plus an RCON-based web admin. `main.ts` runs three daemons/subcontainers: `minecraft-server-sub` (the game server), `rcon-sub` (the rcon-web-admin sidecar), and `rcon-proxy-sub` (an nginx proxy in front of the web admin). The RCON password is auto-generated on install and injected into both the server and the admin; the package speaks the RCON protocol directly from `startos/rcon.ts` (used by the world/whitelist/stats actions and the pre-backup `save-all flush`). No package dependencies.
-
-## Inspecting a running install
-
-To run a command inside the service's container (read its generated config, grep app logs), use `start-cli package attach minecraft -n <name> -- <cmd>`. Select the subcontainer by **name** with `-n` (the name passed to `SubContainer.of` in `main.ts` — `minecraft-server-sub`, `rcon-sub`, or `rcon-proxy-sub`) or by image with `-i`. Note: `-s/--subcontainer` matches the internal **Guid**, not the name, so passing a name to `-s` fails with "no matching subcontainers".
+- **`RCON_PASSWORD` must be handed to the image.** Without it `mc-server-runner` can't stop the server over RCON: vanilla falls back to writing `stop` to the console, but a modded server runs under `run.sh` where that also fails, so the JVM is SIGKILLed after the termination grace instead of saving.
+- **`SKIP_SERVER_PROPERTIES` is load-bearing** — the package owns that file via `FileHelper.ini`, and letting the image regenerate it from env vars would overwrite every managed setting.
+- **`rconWebAdminDbPath` embeds the rcon-web-admin version** and must be updated with the `FROM` line in `rcon.Dockerfile` — the image installs to a versioned directory, and a stale path mounts the volume somewhere nothing reads.
+- **The whitelist is edited over RCON, not by writing `whitelist.json`.** The server resolves each name to the mode-correct UUID; writing the file directly gets offline-mode players wrong. The enforcement flags are then persisted to `server.properties`, which is the source of truth on restart.
+- **`enable-rcon`, `rcon.port` and `server-port` are `z.literal` pins**, so a user edit is repaired on read. The health check, the console, and every RCON-driven action depend on them.
