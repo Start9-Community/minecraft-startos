@@ -1,28 +1,47 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '26.2:4',
+  version: '26.2:5',
   releaseNotes: {
-    en_US: `Package maintenance update. Minecraft itself is unchanged at 26.2 ("Chaos Cubed").
-
-- Fixes the RCON Web Admin launch link. Its address carried a "admin@" prefix, which Chromium-based browsers strip or refuse — the console signs you in with its own form, so the prefix served no purpose.
-- Refreshes the Java 25 and Java 21 Minecraft server base images to their latest builds, picking up upstream security and dependency fixes.`,
-    es_ES: `Actualización de mantenimiento del paquete. Minecraft se mantiene sin cambios en 26.2 ("Chaos Cubed").
-
-- Corrige el enlace de acceso al administrador web RCON. Su dirección incluía el prefijo "admin@", que los navegadores basados en Chromium eliminan o rechazan; la consola inicia sesión con su propio formulario, así que el prefijo no servía para nada.
-- Actualiza las imágenes base del servidor de Minecraft para Java 25 y Java 21 a sus últimas compilaciones, incorporando correcciones de seguridad y de dependencias.`,
-    de_DE: `Wartungsupdate des Pakets. Minecraft selbst bleibt unverändert bei 26.2 ("Chaos Cubed").
-
-- Behebt den Link zur RCON-Weboberfläche. Die Adresse enthielt das Präfix „admin@", das Chromium-basierte Browser entfernen oder ablehnen – die Konsole meldet Sie über ihr eigenes Formular an, das Präfix hatte also keinen Zweck.
-- Aktualisiert die Minecraft-Server-Basis-Images für Java 25 und Java 21 auf ihre neuesten Builds und übernimmt damit Sicherheits- und Abhängigkeitskorrekturen.`,
-    pl_PL: `Aktualizacja konserwacyjna pakietu. Sam Minecraft pozostaje bez zmian w wersji 26.2 („Chaos Cubed").
-
-- Naprawia odnośnik otwierający panel administracyjny RCON. Adres zawierał przedrostek „admin@", który przeglądarki oparte na Chromium usuwają lub odrzucają — konsola loguje użytkownika własnym formularzem, więc przedrostek niczemu nie służył.
-- Odświeża obrazy bazowe serwera Minecraft dla Javy 25 i Javy 21 do najnowszych kompilacji, wraz z poprawkami bezpieczeństwa i zależności.`,
-    fr_FR: `Mise à jour de maintenance du paquet. Minecraft lui-même reste inchangé en 26.2 (« Chaos Cubed »).
-
-- Corrige le lien d'ouverture de l'administration web RCON. Son adresse comportait le préfixe « admin@ », que les navigateurs basés sur Chromium suppriment ou refusent ; la console vous connecte via son propre formulaire, le préfixe n'avait donc aucune utilité.
-- Actualise les images de base du serveur Minecraft pour Java 25 et Java 21 vers leurs dernières versions, intégrant les correctifs de sécurité et de dépendances.`,
+    en_US:
+      'Mod Loader can now install a Modrinth modpack. Give it a modpack slug, ' +
+      'a project or version URL, or upload a .mrpack, and the server installs ' +
+      "the pack's mods, configs and overrides along with the exact loader " +
+      'build the pack was built against. Client-only files are skipped ' +
+      'automatically. The existing vanilla, NeoForge and Fabric options are ' +
+      'unchanged.',
+    es_ES:
+      'El cargador de mods ya puede instalar un modpack de Modrinth. Indica el ' +
+      'identificador del modpack, la URL de un proyecto o de una versión, o sube ' +
+      'un archivo .mrpack, y el servidor instalará los mods, las configuraciones ' +
+      'y los overrides del pack junto con la versión exacta del cargador para la ' +
+      'que fue creado. Los archivos exclusivos del cliente se omiten ' +
+      'automáticamente. Las opciones existentes de vanilla, NeoForge y Fabric no ' +
+      'cambian.',
+    de_DE:
+      'Der Mod-Loader kann jetzt ein Modrinth-Modpack installieren. Geben Sie ' +
+      'einen Modpack-Slug oder eine Projekt- bzw. Versions-URL an oder laden Sie ' +
+      'eine .mrpack-Datei hoch, und der Server installiert die Mods, ' +
+      'Konfigurationen und Overrides des Packs zusammen mit genau dem ' +
+      'Loader-Build, für den das Pack erstellt wurde. Nur für den Client ' +
+      'bestimmte Dateien werden automatisch übersprungen. Die bestehenden ' +
+      'Optionen für Vanilla, NeoForge und Fabric bleiben unverändert.',
+    pl_PL:
+      'Moduł ładujący mody może teraz zainstalować modpack z Modrinth. Podaj ' +
+      'identyfikator modpacka, adres URL projektu lub wersji albo prześlij plik ' +
+      '.mrpack, a serwer zainstaluje mody, konfiguracje i pliki nadpisujące z ' +
+      'paczki wraz z dokładną wersją loadera, dla której paczka została ' +
+      'zbudowana. Pliki przeznaczone wyłącznie dla klienta są pomijane ' +
+      'automatycznie. Istniejące opcje vanilla, NeoForge i Fabric pozostają bez ' +
+      'zmian.',
+    fr_FR:
+      'Le chargeur de mods peut désormais installer un modpack Modrinth. ' +
+      "Indiquez l'identifiant du modpack, l'URL d'un projet ou d'une version, ou " +
+      'téléversez un fichier .mrpack, et le serveur installera les mods, les ' +
+      'configurations et les overrides du pack ainsi que la version exacte du ' +
+      'chargeur pour laquelle il a été conçu. Les fichiers réservés au client ' +
+      'sont ignorés automatiquement. Les options vanilla, NeoForge et Fabric ' +
+      'existantes restent inchangées.',
   },
   migrations: {
     up: async ({ effects }) => {},

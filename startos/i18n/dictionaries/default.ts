@@ -223,6 +223,22 @@ const dict = {
   'Minecraft usernames permitted to join when the whitelist is enforced.': 412,
   'Minecraft usernames are 1-16 characters: letters, numbers, and underscores.': 413,
   'Unable to Reach Server': 414,
+
+  // actions/setup/modLoader.ts — Modrinth modpack support
+  'Modpack Source': 468,
+  'Where to get the pack. A hosted pack is re-fetched on rebuild; an uploaded one is kept on the volume.': 469,
+  'Modrinth project or URL': 470,
+  Modpack: 471,
+  'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file.': 472,
+  'Upload a .mrpack file': 473,
+  'Modpack File': 474,
+  'A .mrpack exported from a launcher. Kept on the server volume, so allow for its size.': 475,
+  'Exclude Files': 476,
+  'Optional. One entry per line. Use this only when a pack marks a client-only mod as server-compatible, which shows up as a crash on start naming that mod. Each entry is a case-insensitive substring of the file path.': 477,
+  'Modrinth Modpack (installs mods, configs and loader together)': 478,
+  'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric run an older, mod-compatible Minecraft on a Java 21 runtime and let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.': 479,
+  'Force Re-sync': 480,
+  'Turn on when you have re-published the pack at the same address, or after changing packs. A pack given by URL is identified by that URL, so an edited pack at the same address looks unchanged and is skipped entirely. This discards the cached copy AND empties the mods folder so it ends up matching the pack exactly -- without it, a jar from a previously applied pack is never removed. Any mod you added by hand is deleted too. Leave off for normal running: it re-downloads and re-installs on every start.': 481,
 } as const
 
 /**

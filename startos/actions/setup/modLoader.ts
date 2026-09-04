@@ -46,6 +46,11 @@ type VersionValue =
   | { selection: 'alpha'; value: {} }
   | { selection: 'pinned'; value: { version: string } }
 
+// A stored modpack source is either a URL/slug the user typed or a path to an
+// uploaded file. Only the former can be put back in the form.
+const isUrl = (source: string): boolean =>
+  source.length > 0 && !source.startsWith('/')
+
 const toVersionValue = (version: string | undefined): VersionValue =>
   !version
     ? { selection: 'release', value: {} }
@@ -94,6 +99,75 @@ const moddedSpec = InputSpec.of({
   ),
 })
 
+// A whole Modrinth modpack, rather than a hand-picked mod list.
+//
+// The pack carries its own Minecraft version and loader build in its
+// `dependencies`, and the image honours both — so neither is asked for here.
+// That is the substantive difference from the per-mod path: a pack pins the
+// loader, which `MODRINTH_PROJECTS` cannot, and a client whose modpack names a
+// different loader build than the server installed is refused at connect.
+//
+// The pack's per-file `env` markers decide what reaches the server, so a pack
+// exported from a client instance installs correctly without editing: its
+// client-only mods, resource packs and shaders are skipped server-side.
+const modpackSpec = InputSpec.of({
+  source: Value.union({
+    name: i18n('Modpack Source'),
+    description: i18n(
+      'Where to get the pack. A hosted pack is re-fetched on rebuild; an uploaded one is kept on the volume.',
+    ),
+    default: 'url',
+    variants: Variants.of({
+      url: {
+        name: i18n('Modrinth project or URL'),
+        spec: InputSpec.of({
+          url: Value.text({
+            name: i18n('Modpack'),
+            description: i18n(
+              'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file.',
+            ),
+            required: true,
+            default: null,
+            placeholder: 'cobblemon-fabric',
+            masked: false,
+          }),
+        }),
+      },
+      upload: {
+        name: i18n('Upload a .mrpack file'),
+        spec: InputSpec.of({
+          file: Value.file({
+            name: i18n('Modpack File'),
+            description: i18n(
+              'A .mrpack exported from a launcher. Kept on the server volume, so allow for its size.',
+            ),
+            extensions: ['.mrpack'],
+            required: true,
+          }),
+        }),
+      },
+    }),
+  }),
+  forceResync: Value.toggle({
+    name: i18n('Force Re-sync'),
+    description: i18n(
+      'Turn on when you have re-published the pack at the same address, or after changing packs. A pack given by URL is identified by that URL, so an edited pack at the same address looks unchanged and is skipped entirely. This discards the cached copy AND empties the mods folder so it ends up matching the pack exactly -- without it, a jar from a previously applied pack is never removed. Any mod you added by hand is deleted too. Leave off for normal running: it re-downloads and re-installs on every start.',
+    ),
+    default: false,
+  }),
+  excludeFiles: Value.textarea({
+    name: i18n('Exclude Files'),
+    description: i18n(
+      'Optional. One entry per line. Use this only when a pack marks a client-only mod as server-compatible, which shows up as a crash on start naming that mod. Each entry is a case-insensitive substring of the file path.',
+    ),
+    required: false,
+    default: null,
+    placeholder: 'notenoughanimations',
+    minLength: null,
+    maxLength: null,
+  }),
+})
+
 const loaderVariants = Variants.of({
   vanilla: {
     name: i18n('Vanilla (no mods) — default'),
@@ -107,13 +181,17 @@ const loaderVariants = Variants.of({
     name: i18n('Fabric'),
     spec: moddedSpec,
   },
+  modpack: {
+    name: i18n('Modrinth Modpack (installs mods, configs and loader together)'),
+    spec: modpackSpec,
+  },
 })
 
 const inputSpec = InputSpec.of({
   loader: Value.union({
     name: i18n('Mod Loader'),
     description: i18n(
-      'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric run an older, mod-compatible Minecraft on a Java 21 runtime and let you install mods.',
+      'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric run an older, mod-compatible Minecraft on a Java 21 runtime and let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.',
     ),
     default: defaultModLoader,
     variants: loaderVariants,
@@ -141,6 +219,25 @@ export const modLoader = sdk.Action.withInput(
       return { loader: { selection: 'vanilla' as const, value: {} } }
     }
 
+    if (store.modLoader === 'modpack') {
+      const { source, excludeFiles } = store.modpack
+      // An uploaded pack is stored as a path on the volume, and re-presenting
+      // it as a URL to be re-typed would be worse than asking for it again --
+      // so only a URL source round-trips into the form.
+      return {
+        loader: {
+          selection: 'modpack' as const,
+          value: {
+            source: isUrl(source)
+              ? { selection: 'url' as const, value: { url: source } }
+              : { selection: 'url' as const, value: { url: '' } },
+            excludeFiles: excludeFiles ?? null,
+            forceResync: store.modpack.forceResync,
+          },
+        },
+      }
+    }
+
     return {
       loader: {
         selection: store.modLoader,
@@ -157,6 +254,22 @@ export const modLoader = sdk.Action.withInput(
   async ({ effects, input }) => {
     if (input.loader.selection === 'vanilla') {
       await storeJson.merge(effects, { modLoader: 'vanilla' })
+      return
+    }
+
+    if (input.loader.selection === 'modpack') {
+      const { source, excludeFiles, forceResync } = input.loader.value
+      await storeJson.merge(effects, {
+        modLoader: 'modpack',
+        modpack: {
+          source:
+            source.selection === 'upload'
+              ? source.value.file.path
+              : source.value.url.trim(),
+          excludeFiles: excludeFiles?.trim() || undefined,
+          forceResync,
+        },
+      })
       return
     }
 
