@@ -79,9 +79,8 @@ const dict = {
 
   // actions/setup/modLoader.ts
   'Mod Loader': 150,
-  'Choose vanilla, NeoForge, or Fabric and install mods': 151,
+  'Choose vanilla, NeoForge, Fabric, or a Modrinth modpack, and install mods': 151,
   'Changing the loader or Minecraft version swaps the server engine. Existing worlds may not load — create a new world after switching. Every player must install the EXACT same loader, Minecraft version, and mods in their client (e.g. via Prism Launcher) or they cannot connect. Modded servers also need more memory — set Standard or High under Configure Server.': 152,
-  'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric run an older, mod-compatible Minecraft on a Java 21 runtime and let you install mods.': 153,
   'Vanilla (no mods) — default': 154,
   'NeoForge (recommended for mods)': 155,
   Fabric: 156,
@@ -229,16 +228,18 @@ const dict = {
   'Where to get the pack. A hosted pack is re-fetched on rebuild; an uploaded one is kept on the volume.': 469,
   'Modrinth project or URL': 470,
   Modpack: 471,
-  'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file.': 472,
+  'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file. The pack must be for Minecraft 1.20.5–1.21.x, the range of the bundled Java 21 runtime; a 1.20.1 pack will not start.': 472,
   'Upload a .mrpack file': 473,
   'Modpack File': 474,
-  'A .mrpack exported from a launcher. Kept on the server volume, so allow for its size.': 475,
+  'A .mrpack exported from a launcher, for Minecraft 1.20.5–1.21.x. Kept on the server volume, so allow for its size. Leave empty to keep the pack already uploaded and change only the options below.': 475,
   'Exclude Files': 476,
   'Optional. One entry per line. Use this only when a pack marks a client-only mod as server-compatible, which shows up as a crash on start naming that mod. Each entry is a case-insensitive substring of the file path.': 477,
   'Modrinth Modpack (installs mods, configs and loader together)': 478,
   'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric run an older, mod-compatible Minecraft on a Java 21 runtime and let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.': 479,
   'Force Re-sync': 480,
-  'Turn on when you have re-published the pack at the same address, or after changing packs. A pack given by URL is identified by that URL, so an edited pack at the same address looks unchanged and is skipped entirely. This discards the cached copy AND empties the mods folder so it ends up matching the pack exactly -- without it, a jar from a previously applied pack is never removed. Any mod you added by hand is deleted too. Leave off for normal running: it re-downloads and re-installs on every start.': 481,
+  'Turn on when you have re-published the pack at the same address. A pack given by URL is identified by that URL, so an edited pack at the same address looks unchanged and is skipped; this discards the cached copy so the pack is fetched and applied again, and whatever the previous pack shipped that this one does not is removed. Leave off for normal running: it re-downloads on every start.': 481,
+  'That file is not a Modrinth modpack: no modrinth.index.json inside it.': 482,
+  'Choose a .mrpack file to upload, or give a URL instead.': 483,
 } as const
 
 /**

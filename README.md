@@ -65,13 +65,15 @@ One volume, holding the server's entire data directory.
 | ------ | ----------- | ------------------------------------------------------- |
 | `main` | `/data`     | Worlds, configuration, mods, and the console's database |
 
-| Path                | Written by  | Holds                                          |
-| ------------------- | ----------- | ---------------------------------------------- |
-| `<world-name>/`     | Minecraft   | One directory per world, each with `level.dat` |
-| `server.properties` | Both        | The server configuration                       |
-| `start9/store.json` | Actions     | Memory, credentials, and the mod list          |
-| `rcon-db/`          | The console | Its own settings and widgets                   |
-| `mods/`             | The image   | Mods downloaded for a modded server            |
+| Path                    | Written by  | Holds                                                           |
+| ----------------------- | ----------- | --------------------------------------------------------------- |
+| `<world-name>/`         | Minecraft   | One directory per world, each with `level.dat`                  |
+| `server.properties`     | Both        | The server configuration                                        |
+| `start9/store.json`     | Actions     | Memory, credentials, and the mod list                           |
+| `start9/modpack.mrpack` | Actions     | An uploaded modpack, read by the image on start                 |
+| `rcon-db/`              | The console | Its own settings and widgets                                    |
+| `mods/`                 | The image   | Mods downloaded for a modded server, or installed from a pack   |
+| `modpack.mrpack`        | The image   | Its cache of a modpack fetched by URL; removed on Force Re-sync |
 
 **Worlds are discovered from the filesystem, not from a list.** Any directory on the volume containing a `level.dat` is a world, which is what lets the world actions enumerate them and read each one's game mode, difficulty, and last-played time straight out of its NBT data.
 
@@ -94,13 +96,13 @@ The RCON password is generated once at install and lives in the same file. It is
 
 `server.properties` also holds everything the **Configure Server** action edits — game mode, difficulty, distances, PvP, whitelist enforcement, MOTD — with each field validated and range-checked on read, so a hand-edited nonsense value falls back to its default rather than failing the start.
 
-The store holds what is not a Minecraft setting: the memory profile, the console's credentials, and the mod loader with its Minecraft version and mod list.
+The store holds what is not a Minecraft setting: the memory profile, the console's credentials, and the mod loader — with its Minecraft version and mod list, or, for a modpack, the pack's source and options.
 
 ## Dependencies
 
 None.
 
-A modded server reaches out to Modrinth at start to download the mods listed for it, so a modded first boot needs internet. Vanilla needs none once installed.
+A modded server reaches out to Modrinth at start to download the mods listed for it, and a modpack server fetches a hosted pack the same way, so a modded first boot needs internet. Vanilla needs none once installed, and neither does an uploaded pack.
 
 ## Network Access and Interfaces
 
@@ -143,12 +145,16 @@ The gameplay settings and the memory allocation.
 
 #### Mod Loader
 
-Vanilla, NeoForge, or Fabric, with the Minecraft version and the mod list for the modded options.
+Vanilla, NeoForge, or Fabric with the Minecraft version and the mod list for the modded options — or a Modrinth modpack, which brings its own Minecraft version, loader build, mods, configs and overrides.
 
-- **What it changes:** the loader, the version, and the mods in the store — and through them the server image that runs.
-- **Cost:** the service restarts onto a different image and, for a modded start, re-downloads mods.
-- **Repeat safety:** idempotent, pre-filled. Mods are Modrinth project slugs, each optionally pinned to a version or a release channel; required dependencies are pulled automatically.
-- **Carries a warning, and it is not decorative.** Existing worlds may not load across a loader or version change, and **every player must run the same loader, version, and mods** or they cannot connect.
+- **What it changes:** the loader, the version, and the mods in the store — and through them the server image that runs. For a modpack: the pack's source (a slug, a project or version URL, a direct `.mrpack` URL, or an uploaded file), whether to force a re-sync, and files to exclude.
+- **Cost:** the service restarts onto a different image and, for a modded start, re-downloads mods; a modpack start installs the pack.
+- **Repeat safety:** idempotent, pre-filled. Mods are Modrinth project slugs, each optionally pinned to a version or a release channel; required dependencies are pulled automatically. An uploaded pack re-opens on the upload variant with the file empty, meaning "keep it", so the options can be changed without uploading again.
+- **An uploaded pack is copied onto the volume** at `start9/modpack.mrpack` by the action itself: the upload is a file in the action's runtime, which the game container cannot see. The action checks the file is a zip with a `modrinth.index.json` inside before accepting it.
+- **Force Re-sync** removes the image's cached URL download (`modpack.mrpack`), which the image never refreshes on its own, so an edited pack re-published at the same address is fetched again. The image's install manifest is left in place: its own cleanup then removes whatever the previous pack shipped that the new one does not. A slug source is re-synced by the image's `MODRINTH_FORCE_SYNCHRONIZE`; an uploaded pack is re-read on every start.
+- **`VERSION` is not set for a modpack.** The pack's index pins both the Minecraft version and the loader build; setting a version alongside makes the image install one and fight the other.
+- **Exclude Files** matches paths of the pack's listed files only; it does not filter the pack's `overrides/`.
+- **Carries a warning, and it is not decorative.** Existing worlds may not load across a loader or version change, and **every player must run the same loader, version, and mods** or they cannot connect. A modpack is the reliable way to match: the server installs the loader build the pack names, and so does a client that installs the same pack.
 
 #### Set Web Admin Password
 
@@ -212,15 +218,15 @@ One, raised at install.
 
 Three checks, one per daemon.
 
-| Check              | Displayed as           | Method                                  | Grace               |
-| ------------------ | ---------------------- | --------------------------------------- | ------------------- |
-| `minecraft-server` | "Minecraft Server"     | Game port listening, **then** RCON port | 30s, or 300s modded |
-| `rcon-admin`       | "RCON Web Admin"       | The console's port is listening         | —                   |
-| `rcon-proxy`       | "RCON Web Admin Proxy" | The proxy's port is listening           | —                   |
+| Check              | Displayed as           | Method                                  | Grace                          |
+| ------------------ | ---------------------- | --------------------------------------- | ------------------------------ |
+| `minecraft-server` | "Minecraft Server"     | Game port listening, **then** RCON port | 30s; 300s modded; 900s modpack |
+| `rcon-admin`       | "RCON Web Admin"       | The console's port is listening         | —                              |
+| `rcon-proxy`       | "RCON Web Admin Proxy" | The proxy's port is listening           | —                              |
 
 **The server's check is two-stage on purpose.** The game port opens before RCON does, and everything this package does administratively goes over RCON — so the check reports "waiting for RCON" in the window where players could connect but the console and the world actions could not.
 
-The modded grace period is ten times the vanilla one because a modded first start downloads a loader and a mod set before it listens at all.
+The modded grace period is ten times the vanilla one because a modded first start downloads a loader and a mod set before it listens at all. A modpack's is longer again: a first install also downloads and verifies every jar in the pack, and a large pack over a home connection outruns the modded allowance.
 
 None of the three says anything about the world: lag, a corrupt chunk, or a mod failing to load all show three green checks and an error in the server logs.
 
@@ -242,7 +248,7 @@ A restored instance comes back with the same worlds, the same console password, 
 4. **Installing accepts the Mojang EULA** on your behalf.
 5. **The console has one account.** There is no per-user access to the admin interface, and it holds full RCON control.
 6. **Deleting a world requires stopping the service**, and cannot target the active world.
-7. **Mods come from Modrinth only**, by project slug — there is no upload path for a mod from anywhere else.
+7. **Individual mods come from Modrinth only**, by project slug. A whole pack can be uploaded as a `.mrpack`, which is the way to bring in a mod from anywhere else.
 8. **Backups of a running server depend on RCON**; a failed flush aborts the backup by design.
 9. **`server.properties` is managed by the package.** The image's own environment-variable generation is disabled, so settings not exposed by an action must be edited in the file.
 
@@ -264,7 +270,7 @@ volumes:
   main: /data # worlds, server.properties, start9/store.json, rcon-db/ (mounted into rcon-sub)
 file_models:
   - server.properties # ini; read .once() because Minecraft rewrites it on every load
-  - start9/store.json # json; read .const() — memory, console credentials, mod loader + mods
+  - start9/store.json # json; read .const() — memory, console credentials, mod loader + mods, or the modpack's source and options
 startos_managed_env_vars:
   - EULA
   - TYPE
@@ -275,7 +281,10 @@ startos_managed_env_vars:
   - SKIP_SERVER_PROPERTIES
   - MODRINTH_PROJECTS # modded only
   - MODRINTH_DOWNLOAD_DEPENDENCIES # modded only
-dependencies: [] # but a modded start needs internet to fetch mods from Modrinth
+  - MODRINTH_MODPACK # modpack only; VERSION is then not set
+  - MODRINTH_FORCE_SYNCHRONIZE # modpack only, when Force Re-sync is on
+  - MODRINTH_EXCLUDE_FILES # modpack only, when Exclude Files is set
+dependencies: [] # but a modded or hosted-modpack start needs internet to fetch from Modrinth
 interfaces:
   web-admin: { type: ui, port: 8080 } # nginx in front of the console; console's own login
   minecraft-server: { type: p2p, port: 25565 } # raw TCP, external port preserved

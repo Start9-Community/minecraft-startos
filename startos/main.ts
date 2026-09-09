@@ -1,6 +1,6 @@
-import { writeFile } from 'fs/promises'
+import { rm, writeFile } from 'fs/promises'
 import { serverProperties } from './fileModels/server.properties'
-import { storeJson } from './fileModels/store.json'
+import { storeJson, uploadedModpackPath } from './fileModels/store.json'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
@@ -19,11 +19,9 @@ const minecraftHealthGracePeriod = 30_000
 // Modded first boot installs the loader and downloads mods before the port
 // opens, so it needs a much longer grace before health failures count.
 const moddedHealthGracePeriod = 300_000
-// A modpack first boot does everything a modded one does and more: fetch or
-// read the pack, install the loader build it names, then write every mod,
-// config and override it carries. A large pack on a slow link legitimately
-// takes longer than the modded allowance, and a health check that goes red
-// mid-install invites someone to "fix" a server that is working.
+// A modpack first boot also downloads and verifies every jar in the pack
+// before the port opens; a large pack on a home connection outruns the modded
+// allowance.
 const modpackHealthGracePeriod = 900_000
 const vanillaVersion = '26.2'
 
@@ -141,24 +139,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
     SKIP_SERVER_PROPERTIES: 'TRUE',
   }
   if (isModpack) {
-    // A modpack declares its own Minecraft version *and* loader build in the
-    // pack's `dependencies`, and the image installs both. So VERSION is left
-    // unset here deliberately: setting it would narrow which pack version is
-    // resolved, and for a direct .mrpack would simply conflict with the pack.
-    //
-    // This is also the only path on which the loader build is pinned. The
-    // per-mod path leaves NEOFORGE_VERSION at its default of `latest`, so the
-    // server drifts onto a newer build on restart while clients keep the one
-    // their modpack names -- see issue #7.
+    // VERSION is left unset on purpose: the pack's own index pins both the
+    // Minecraft version and the loader build, and the image installs both.
     minecraftEnv.MODRINTH_MODPACK = store.modpack.source
     if (store.modpack.forceResync) {
-      // Only consulted on the Modrinth-API path (slug/project); the direct-URL
-      // path ignores it, which is why the cached pack is cleared as well below.
       minecraftEnv.MODRINTH_FORCE_SYNCHRONIZE = 'TRUE'
     }
     if (store.modpack.excludeFiles) {
-      // For packs that mark a client-only mod as server-compatible; without
-      // this the server crashes on start naming that mod.
       minecraftEnv.MODRINTH_EXCLUDE_FILES = store.modpack.excludeFiles
     }
   } else {
@@ -177,55 +164,21 @@ export const main = sdk.setupMain(async ({ effects }) => {
     minecraftEnv.MODRINTH_DOWNLOAD_DEPENDENCIES = 'required'
   }
 
-  /**
-   * Clear the cached modpack when a re-sync is asked for.
-   *
-   * A URL-sourced pack is identified by the URL itself -- the image base64s it
-   * into a version id -- so re-publishing an edited pack at the same address
-   * looks unchanged and the whole install step is skipped. That also means
-   * `MODRINTH_EXCLUDE_FILES` is never evaluated, which is a confusing way to
-   * discover this: the exclusion appears to be ignored when in fact nothing ran.
-   *
-   * `MODRINTH_FORCE_SYNCHRONIZE` does not cover this. It is only passed to the
-   * Modrinth-API fetcher (slug or project id); the direct-URL fetcher never
-   * receives it. Removing the cached pack and its manifest is what forces a
-   * genuine re-fetch, so both are done together.
-   *
-   * The oneshot is always present, and is a no-op unless a re-sync is
-   * requested, so the daemon graph keeps one shape.
-   */
-  const resyncCommand =
-    isModpack && store.modpack.forceResync
-      ? [
-          // The cached pack and its manifest: without removing these, a pack
-          // re-published at the same URL is treated as already installed.
-          'rm -f /data/modpack.mrpack /data/.modrinth-modpack-manifest.json /data/.install-modrinth.env',
-          // And the mods themselves. The installer only ever *adds*: a jar left
-          // behind by a previously applied pack is never cleaned up, so a mod
-          // the current pack does not contain keeps loading -- and a client-only
-          // one crashes the server on every start with a mixin error naming a
-          // mod you can no longer find in your pack. Synchronising means the
-          // directory ends up matching the pack, which means emptying it first.
-          'rm -rf /data/mods',
-        ].join(' && ')
-      : 'true'
+  if (
+    isModpack &&
+    store.modpack.forceResync &&
+    store.modpack.source !== uploadedModpackPath
+  ) {
+    // The image keeps a URL download at `modpack.mrpack` and never refreshes
+    // it, so a pack re-published at the same address is skipped as already
+    // installed; MODRINTH_FORCE_SYNCHRONIZE reaches only the slug path. The
+    // cached copy is the one thing to remove: the image's own manifest stays,
+    // so its cleanup removes what the previous pack shipped and the new one
+    // does not. An uploaded pack is re-read on every start regardless.
+    await rm(sdk.volumes.main.subpath('modpack.mrpack'), { force: true })
+  }
 
   return sdk.Daemons.of(effects)
-    .addOneshot('modpack-cache', {
-      subcontainer: sdk.SubContainer.of(
-        effects,
-        { imageId: minecraftImageId },
-        sdk.Mounts.of().mountVolume({
-          volumeId: 'main',
-          subpath: null,
-          mountpoint: '/data',
-          readonly: false,
-        }),
-        'modpack-cache-sub',
-      ),
-      exec: { command: ['sh', '-c', resyncCommand] },
-      requires: [],
-    })
     .addDaemon('minecraft-server', {
       subcontainer: sdk.SubContainer.of(
         effects,
@@ -269,7 +222,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
           })
         },
       },
-      requires: ['modpack-cache'],
+      requires: [],
     })
     .addDaemon('rcon-admin', {
       subcontainer: sdk.SubContainer.of(

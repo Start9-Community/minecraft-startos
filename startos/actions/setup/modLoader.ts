@@ -1,7 +1,9 @@
+import { promises as fs } from 'node:fs'
 import {
   defaultModLoader,
   defaultModMinecraftVersion,
   storeJson,
+  uploadedModpackPath,
 } from '../../fileModels/store.json'
 import { i18n } from '../../i18n'
 import { sdk } from '../../sdk'
@@ -46,10 +48,13 @@ type VersionValue =
   | { selection: 'alpha'; value: {} }
   | { selection: 'pinned'; value: { version: string } }
 
-// A stored modpack source is either a URL/slug the user typed or a path to an
-// uploaded file. Only the former can be put back in the form.
-const isUrl = (source: string): boolean =>
-  source.length > 0 && !source.startsWith('/')
+// Where an uploaded pack lives on the volume, relative to its root. The
+// container sees it at `uploadedModpackPath`.
+const uploadedModpackSubpath = 'start9/modpack.mrpack'
+
+// A stored modpack source is either something the user typed -- a slug or a
+// URL -- or the fixed path of an uploaded pack.
+const isUpload = (source: string): boolean => source === uploadedModpackPath
 
 const toVersionValue = (version: string | undefined): VersionValue =>
   !version
@@ -57,6 +62,14 @@ const toVersionValue = (version: string | undefined): VersionValue =>
     : version === 'beta' || version === 'alpha'
       ? { selection: version, value: {} }
       : { selection: 'pinned', value: { version } }
+
+// A .mrpack is a zip whose index is a member named `modrinth.index.json`; the
+// name appears verbatim in the zip's central directory. The extension filter
+// only constrains the form, and a pack that is not one fails at install with
+// a message about a project that does not exist.
+const isModrinthPack = (bytes: Buffer): boolean =>
+  bytes.subarray(0, 2).equals(Buffer.from('PK')) &&
+  bytes.includes('modrinth.index.json')
 
 const moddedSpec = InputSpec.of({
   minecraftVersion: Value.text({
@@ -99,17 +112,8 @@ const moddedSpec = InputSpec.of({
   ),
 })
 
-// A whole Modrinth modpack, rather than a hand-picked mod list.
-//
-// The pack carries its own Minecraft version and loader build in its
-// `dependencies`, and the image honours both — so neither is asked for here.
-// That is the substantive difference from the per-mod path: a pack pins the
-// loader, which `MODRINTH_PROJECTS` cannot, and a client whose modpack names a
-// different loader build than the server installed is refused at connect.
-//
-// The pack's per-file `env` markers decide what reaches the server, so a pack
-// exported from a client instance installs correctly without editing: its
-// client-only mods, resource packs and shaders are skipped server-side.
+// A whole Modrinth modpack, rather than a hand-picked mod list. The pack
+// carries its own Minecraft version and loader build, so neither is asked for.
 const modpackSpec = InputSpec.of({
   source: Value.union({
     name: i18n('Modpack Source'),
@@ -124,7 +128,7 @@ const modpackSpec = InputSpec.of({
           url: Value.text({
             name: i18n('Modpack'),
             description: i18n(
-              'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file.',
+              'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file. The pack must be for Minecraft 1.20.5–1.21.x, the range of the bundled Java 21 runtime; a 1.20.1 pack will not start.',
             ),
             required: true,
             default: null,
@@ -139,10 +143,10 @@ const modpackSpec = InputSpec.of({
           file: Value.file({
             name: i18n('Modpack File'),
             description: i18n(
-              'A .mrpack exported from a launcher. Kept on the server volume, so allow for its size.',
+              'A .mrpack exported from a launcher, for Minecraft 1.20.5–1.21.x. Kept on the server volume, so allow for its size. Leave empty to keep the pack already uploaded and change only the options below.',
             ),
             extensions: ['.mrpack'],
-            required: true,
+            required: false,
           }),
         }),
       },
@@ -151,7 +155,7 @@ const modpackSpec = InputSpec.of({
   forceResync: Value.toggle({
     name: i18n('Force Re-sync'),
     description: i18n(
-      'Turn on when you have re-published the pack at the same address, or after changing packs. A pack given by URL is identified by that URL, so an edited pack at the same address looks unchanged and is skipped entirely. This discards the cached copy AND empties the mods folder so it ends up matching the pack exactly -- without it, a jar from a previously applied pack is never removed. Any mod you added by hand is deleted too. Leave off for normal running: it re-downloads and re-installs on every start.',
+      'Turn on when you have re-published the pack at the same address. A pack given by URL is identified by that URL, so an edited pack at the same address looks unchanged and is skipped; this discards the cached copy so the pack is fetched and applied again, and whatever the previous pack shipped that this one does not is removed. Leave off for normal running: it re-downloads on every start.',
     ),
     default: false,
   }),
@@ -202,7 +206,9 @@ export const modLoader = sdk.Action.withInput(
   'mod-loader',
   async () => ({
     name: i18n('Mod Loader'),
-    description: i18n('Choose vanilla, NeoForge, or Fabric and install mods'),
+    description: i18n(
+      'Choose vanilla, NeoForge, Fabric, or a Modrinth modpack, and install mods',
+    ),
     warning: i18n(
       'Changing the loader or Minecraft version swaps the server engine. Existing worlds may not load — create a new world after switching. Every player must install the EXACT same loader, Minecraft version, and mods in their client (e.g. via Prism Launcher) or they cannot connect. Modded servers also need more memory — set Standard or High under Configure Server.',
     ),
@@ -221,16 +227,16 @@ export const modLoader = sdk.Action.withInput(
 
     if (store.modLoader === 'modpack') {
       const { source, excludeFiles } = store.modpack
-      // An uploaded pack is stored as a path on the volume, and re-presenting
-      // it as a URL to be re-typed would be worse than asking for it again --
-      // so only a URL source round-trips into the form.
+      // An uploaded pack re-opens on the upload variant with the file empty,
+      // which means "keep it": the options can be changed without uploading
+      // the pack again.
       return {
         loader: {
           selection: 'modpack' as const,
           value: {
-            source: isUrl(source)
-              ? { selection: 'url' as const, value: { url: source } }
-              : { selection: 'url' as const, value: { url: '' } },
+            source: isUpload(source)
+              ? { selection: 'upload' as const, value: { file: null } }
+              : { selection: 'url' as const, value: { url: source } },
             excludeFiles: excludeFiles ?? null,
             forceResync: store.modpack.forceResync,
           },
@@ -259,13 +265,36 @@ export const modLoader = sdk.Action.withInput(
 
     if (input.loader.selection === 'modpack') {
       const { source, excludeFiles, forceResync } = input.loader.value
+      const current = await storeJson.read().once()
+      let packSource: string
+      if (source.selection === 'upload') {
+        if (source.value.file) {
+          // The upload is a file in this action's own runtime, which the
+          // game container cannot see: copy it onto the volume, at a fixed
+          // path the container reads. Not the image's own `modpack.mrpack`,
+          // which is its cache of a URL download and is cleared on re-sync.
+          const uploaded = await fs.readFile(source.value.file.path)
+          if (!isModrinthPack(uploaded)) {
+            throw new Error(
+              i18n(
+                'That file is not a Modrinth modpack: no modrinth.index.json inside it.',
+              ),
+            )
+          }
+          await sdk.volumes.main.writeFile(uploadedModpackSubpath, uploaded)
+        } else if (!isUpload(current?.modpack.source ?? '')) {
+          throw new Error(
+            i18n('Choose a .mrpack file to upload, or give a URL instead.'),
+          )
+        }
+        packSource = uploadedModpackPath
+      } else {
+        packSource = source.value.url.trim()
+      }
       await storeJson.merge(effects, {
         modLoader: 'modpack',
         modpack: {
-          source:
-            source.selection === 'upload'
-              ? source.value.file.path
-              : source.value.url.trim(),
+          source: packSource,
           excludeFiles: excludeFiles?.trim() || undefined,
           forceResync,
         },

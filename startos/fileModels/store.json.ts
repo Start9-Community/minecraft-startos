@@ -39,24 +39,20 @@ const memorySchema = z
     maximum: defaultMaximumMemory,
   })
 
-// A Modrinth modpack, either uploaded or named by URL/slug. The image
-// resolves it, and — unlike the per-mod path — the *pack* decides the
-// Minecraft version and the loader build, so neither is stored alongside it.
+// Where the game container finds an uploaded .mrpack: the Mod Loader action
+// writes the upload there, under the package's own directory on the volume.
+export const uploadedModpackPath = '/data/start9/modpack.mrpack'
+
+// A Modrinth modpack, either uploaded or named by URL/slug. The pack decides
+// the Minecraft version and the loader build, so neither is stored alongside.
 export const modpackSchema = z
   .object({
-    // A container path to an uploaded .mrpack, or a Modrinth slug, project
-    // URL, version URL, or direct .mrpack URL. Passed to MODRINTH_MODPACK
-    // verbatim; the image accepts all of these forms.
+    // `uploadedModpackPath`, or a Modrinth slug, project URL, version URL, or
+    // direct .mrpack URL. Passed to MODRINTH_MODPACK verbatim.
     source: z.string().catch(''),
-    // Files to leave out, for packs that mark a client mod server-compatible.
-    // Newline or comma delimited; see MODRINTH_EXCLUDE_FILES.
+    // Files to leave out; newline or comma delimited. See MODRINTH_EXCLUDE_FILES.
     excludeFiles: z.string().optional().catch(undefined),
     // Re-fetch and re-apply the pack even if it looks unchanged.
-    //
-    // The image identifies a URL-sourced pack by the URL itself (base64 of it),
-    // not by its contents, so re-publishing an edited pack at the same address
-    // is invisible: the install step is skipped entirely, which also means
-    // excludeFiles is never evaluated. This forces the issue.
     forceResync: z.boolean().catch(false),
   })
   .catch({ source: '', excludeFiles: undefined, forceResync: false })
