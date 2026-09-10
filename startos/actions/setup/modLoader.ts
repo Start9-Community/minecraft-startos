@@ -1,16 +1,17 @@
+import { promises as fs } from 'node:fs'
 import {
   defaultModLoader,
   defaultModMinecraftVersion,
   storeJson,
+  type StoreConfig,
+  uploadedModpackPath,
 } from '../../fileModels/store.json'
 import { i18n } from '../../i18n'
+import { replaceUploadedModpack } from '../../modpacks'
 import { sdk } from '../../sdk'
 
 const { InputSpec, Value, Variants, List } = sdk
 
-// Per-mod version selector, mapping to the optional `version` on a stored mod
-// entry: a release channel (beta/alpha) or a pinned version / Modrinth version
-// ID. "release" means no pin (latest stable).
 const versionField = Value.union({
   name: i18n('Version'),
   description: i18n(
@@ -39,12 +40,45 @@ const versionField = Value.union({
   }),
 })
 
-// Map a stored version string to the form's version-union value.
 type VersionValue =
   | { selection: 'release'; value: {} }
   | { selection: 'beta'; value: {} }
   | { selection: 'alpha'; value: {} }
   | { selection: 'pinned'; value: { version: string } }
+
+const maximumExclusionsBytes = 64 * 1024
+const maximumExclusionsCharacters = 64 * 1024
+
+const isUpload = (source: string): boolean => source === uploadedModpackPath
+
+const isHostedSource = (source: string): boolean => {
+  if (source.startsWith('/') || source.startsWith('\\')) return false
+
+  if (/^[A-Za-z][A-Za-z\d+.-]*:/.test(source)) {
+    try {
+      const protocol = new URL(source).protocol
+      return protocol === 'http:' || protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
+
+  return !/\.mrpack$/i.test(source)
+}
+
+const sameModpackConfiguration = (
+  current: StoreConfig | null,
+  next: {
+    modLoader: 'modpack'
+    modpack: StoreConfig['modpack']
+  },
+): boolean =>
+  current?.modLoader === next.modLoader &&
+  current.modpack.source === next.modpack.source &&
+  (current.modpack.excludeFiles?.trim() || undefined) ===
+    next.modpack.excludeFiles &&
+  current.modpack.forceResync === next.modpack.forceResync &&
+  current.modpack.uploadHash === next.modpack.uploadHash
 
 const toVersionValue = (version: string | undefined): VersionValue =>
   !version
@@ -57,7 +91,7 @@ const moddedSpec = InputSpec.of({
   minecraftVersion: Value.text({
     name: i18n('Minecraft Version'),
     description: i18n(
-      'Minecraft version for the modded server. Must be supported by the loader and your mods, and within the bundled Java 21 range (1.20.5–1.21.x). Every client must run this exact version.',
+      'Minecraft version for the modded server. It must be supported by the loader, the mods, and the bundled modded runtime. Every client must run this version.',
     ),
     required: true,
     default: defaultModMinecraftVersion,
@@ -69,7 +103,7 @@ const moddedSpec = InputSpec.of({
       {
         name: i18n('Mods'),
         description: i18n(
-          'Mods to install from Modrinth. Dependencies download automatically. Every client must install these same mods at the same versions.',
+          'Mods to install from Modrinth. Dependencies download automatically. Every client must install the client-required mods at matching versions.',
         ),
         default: [],
       },
@@ -94,6 +128,64 @@ const moddedSpec = InputSpec.of({
   ),
 })
 
+const modpackSpec = InputSpec.of({
+  source: Value.union({
+    name: i18n('Modpack Source'),
+    description: i18n(
+      'Where to get the pack. Modrinth project sources are checked on start, direct .mrpack URLs are cached, and uploaded packs are kept on the volume.',
+    ),
+    default: 'url',
+    variants: Variants.of({
+      url: {
+        name: i18n('Modrinth project or URL'),
+        spec: InputSpec.of({
+          url: Value.text({
+            name: i18n('Modpack'),
+            description: i18n(
+              'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file. The pack must support the bundled modded runtime.',
+            ),
+            required: true,
+            default: null,
+            placeholder: 'cobblemon-fabric',
+            masked: false,
+          }),
+        }),
+      },
+      upload: {
+        name: i18n('Upload a .mrpack file'),
+        spec: InputSpec.of({
+          file: Value.file({
+            name: i18n('Modpack File'),
+            description: i18n(
+              'A .mrpack exported from a launcher that supports the bundled modded runtime. Uploads are limited to 512 MiB and kept on the server volume. Leave empty to keep the pack already uploaded and change only the options below.',
+            ),
+            extensions: ['.mrpack'],
+            required: false,
+          }),
+        }),
+      },
+    }),
+  }),
+  forceResync: Value.toggle({
+    name: i18n('Force Re-sync'),
+    description: i18n(
+      'Turn on when a pack has changed without its source changing. Modrinth project sources are checked on start, but direct .mrpack URLs stay cached unless Force Re-sync is enabled. Uploaded packs remain on the volume. Force Re-sync stays enabled until you turn it off.',
+    ),
+    default: false,
+  }),
+  excludeFiles: Value.textarea({
+    name: i18n('Exclude Files'),
+    description: i18n(
+      'Optional. One entry per line. Use this only when a pack marks a client-only mod as server-compatible, which shows up as a crash on start naming that mod. Each entry is a case-insensitive substring of the file path.',
+    ),
+    required: false,
+    default: null,
+    placeholder: 'notenoughanimations',
+    minLength: null,
+    maxLength: maximumExclusionsCharacters,
+  }),
+})
+
 const loaderVariants = Variants.of({
   vanilla: {
     name: i18n('Vanilla (no mods) — default'),
@@ -107,13 +199,17 @@ const loaderVariants = Variants.of({
     name: i18n('Fabric'),
     spec: moddedSpec,
   },
+  modpack: {
+    name: i18n('Modrinth Modpack (installs mods, configs and loader together)'),
+    spec: modpackSpec,
+  },
 })
 
 const inputSpec = InputSpec.of({
   loader: Value.union({
     name: i18n('Mod Loader'),
     description: i18n(
-      'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric run an older, mod-compatible Minecraft on a Java 21 runtime and let you install mods.',
+      'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric use the bundled modded runtime and let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.',
     ),
     default: defaultModLoader,
     variants: loaderVariants,
@@ -124,9 +220,11 @@ export const modLoader = sdk.Action.withInput(
   'mod-loader',
   async () => ({
     name: i18n('Mod Loader'),
-    description: i18n('Choose vanilla, NeoForge, or Fabric and install mods'),
+    description: i18n(
+      'Choose vanilla, NeoForge, Fabric, or a Modrinth modpack, and install mods',
+    ),
     warning: i18n(
-      'Changing the loader or Minecraft version swaps the server engine. Existing worlds may not load — create a new world after switching. Every player must install the EXACT same loader, Minecraft version, and mods in their client (e.g. via Prism Launcher) or they cannot connect. Modded servers also need more memory — set Standard or High under Configure Server.',
+      'Changing the loader or Minecraft version swaps the server engine. Existing worlds may not load — create a new world after switching. For hand-picked mods, every player needs the same loader and Minecraft version plus the client-required mods at matching versions. For a modpack, every player needs the matching client pack. Modded servers also need more memory — set Standard or High under Configure Server.',
     ),
     allowedStatuses: 'any',
     group: i18n('Setup'),
@@ -139,6 +237,22 @@ export const modLoader = sdk.Action.withInput(
 
     if (store.modLoader === 'vanilla') {
       return { loader: { selection: 'vanilla' as const, value: {} } }
+    }
+
+    if (store.modLoader === 'modpack') {
+      const { source, excludeFiles } = store.modpack
+      return {
+        loader: {
+          selection: 'modpack' as const,
+          value: {
+            source: isUpload(source)
+              ? { selection: 'upload' as const, value: { file: null } }
+              : { selection: 'url' as const, value: { url: source } },
+            excludeFiles: excludeFiles ?? null,
+            forceResync: store.modpack.forceResync,
+          },
+        },
+      }
     }
 
     return {
@@ -157,6 +271,79 @@ export const modLoader = sdk.Action.withInput(
   async ({ effects, input }) => {
     if (input.loader.selection === 'vanilla') {
       await storeJson.merge(effects, { modLoader: 'vanilla' })
+      return
+    }
+
+    if (input.loader.selection === 'modpack') {
+      const current = await storeJson.read().once()
+      const { source, excludeFiles, forceResync } = input.loader.value
+      const normalizedExclusions = excludeFiles?.trim() || undefined
+      if (
+        normalizedExclusions &&
+        Buffer.byteLength(normalizedExclusions, 'utf8') > maximumExclusionsBytes
+      ) {
+        throw new Error(i18n('Exclude Files must be no larger than 64 KiB.'))
+      }
+
+      const packSource =
+        source.selection === 'upload'
+          ? uploadedModpackPath
+          : source.value.url.trim()
+      if (source.selection === 'url' && !isHostedSource(packSource)) {
+        throw new Error(
+          i18n('Enter a Modrinth project ID, slug, or HTTP(S) URL.'),
+        )
+      }
+      if (
+        source.selection === 'upload' &&
+        !source.value.file &&
+        !isUpload(current?.modpack.source ?? '')
+      ) {
+        throw new Error(
+          i18n('Choose a .mrpack file to upload, or give a URL instead.'),
+        )
+      }
+
+      const exclusionsChanged =
+        normalizedExclusions !==
+        (current?.modpack.excludeFiles?.trim() || undefined)
+      const effectiveForceResync =
+        forceResync ||
+        (!isUpload(packSource) &&
+          packSource === current?.modpack.source &&
+          exclusionsChanged)
+      const nextConfiguration = (uploadHash: string | undefined) => ({
+        modLoader: 'modpack' as const,
+        modpack: {
+          source: packSource,
+          excludeFiles: normalizedExclusions,
+          forceResync: effectiveForceResync,
+          uploadHash,
+        },
+      })
+
+      if (source.selection === 'upload' && source.value.file) {
+        await replaceUploadedModpack(source.value.file, async (uploadHash) => {
+          await storeJson.merge(effects, nextConfiguration(uploadHash))
+        })
+        return
+      }
+
+      const next = nextConfiguration(
+        isUpload(packSource) ? current?.modpack.uploadHash : undefined,
+      )
+      const configurationChanged = !sameModpackConfiguration(current, next)
+      if (!isUpload(packSource) && packSource !== current?.modpack.source) {
+        await fs.rm(sdk.volumes.main.subpath('modpack.mrpack'), { force: true })
+      }
+      await storeJson.merge(effects, next)
+      if (
+        !configurationChanged &&
+        !isUpload(packSource) &&
+        effectiveForceResync
+      ) {
+        await effects.restart()
+      }
       return
     }
 

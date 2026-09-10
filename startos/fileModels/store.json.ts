@@ -5,7 +5,12 @@ export const defaultInitialMemory = '1G'
 export const defaultMaximumMemory = '2G'
 export const defaultWebAdminUsername = 'admin'
 
-export const modLoaderSchema = z.enum(['vanilla', 'neoforge', 'fabric'])
+export const modLoaderSchema = z.enum([
+  'vanilla',
+  'neoforge',
+  'fabric',
+  'modpack',
+])
 export type ModLoader = z.infer<typeof modLoaderSchema>
 export const defaultModLoader: ModLoader = 'vanilla'
 export const defaultModMinecraftVersion = '1.21.8'
@@ -34,6 +39,23 @@ const memorySchema = z
     maximum: defaultMaximumMemory,
   })
 
+export const uploadedModpackSubpath = 'start9/modpack.mrpack'
+export const uploadedModpackPath = `/data/${uploadedModpackSubpath}`
+
+const modpackSchema = z
+  .object({
+    source: z.string().catch(''),
+    excludeFiles: z.string().optional().catch(undefined),
+    forceResync: z.boolean().catch(false),
+    uploadHash: z.string().optional().catch(undefined),
+  })
+  .catch({
+    source: '',
+    excludeFiles: undefined,
+    forceResync: false,
+    uploadHash: undefined,
+  })
+
 const storeConfigSchema = z.object({
   memory: memorySchema,
   webAdminUsername: z.string().catch(defaultWebAdminUsername),
@@ -43,6 +65,7 @@ const storeConfigSchema = z.object({
   modLoader: modLoaderSchema.catch(defaultModLoader),
   modMinecraftVersion: z.string().catch(defaultModMinecraftVersion),
   mods: z.array(modEntrySchema).catch([]),
+  modpack: modpackSchema,
 })
 
 export type StoreConfig = z.infer<typeof storeConfigSchema>

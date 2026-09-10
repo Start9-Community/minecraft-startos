@@ -1,7 +1,8 @@
-import { writeFile } from 'fs/promises'
+import { rm, writeFile } from 'node:fs/promises'
 import { serverProperties } from './fileModels/server.properties'
-import { storeJson } from './fileModels/store.json'
+import { storeJson, uploadedModpackPath } from './fileModels/store.json'
 import { i18n } from './i18n'
+import { removeTrackedMods } from './modpacks'
 import { sdk } from './sdk'
 import {
   gamePort,
@@ -19,6 +20,7 @@ const minecraftHealthGracePeriod = 30_000
 // Modded first boot installs the loader and downloads mods before the port
 // opens, so it needs a much longer grace before health failures count.
 const moddedHealthGracePeriod = 300_000
+const modpackHealthGracePeriod = 900_000
 const vanillaVersion = '26.2'
 
 const proxyConfig = ({
@@ -71,21 +73,12 @@ server {
 export const main = sdk.setupMain(async ({ effects }) => {
   console.log('Starting Minecraft!')
 
-  // store.json is package-internal — only our actions write to it, so .const()
-  // gives us automatic restart-on-change.
-  //
-  // server.properties is also written by Minecraft itself (the image truncates
-  // and rewrites on every load via Java's FileOutputStream), which produces
-  // a transient empty-file state where rcon.password parses back to the
-  // schema's '' catch fallback — different from the real value — and would
-  // trip .const() before RCON is ready. So we read it .once() and let the
-  // narrow set of actions that mutate only server.properties (createWorld,
-  // selectWorld) call effects.restart() explicitly.
   const store = await storeJson.read().const(effects)
   if (!store) {
     throw new Error('no store.json')
   }
 
+  // Watching transiently empty `server.properties` causes premature restarts.
   const props = await serverProperties.read().once()
   if (!props) {
     throw new Error('no server.properties')
@@ -108,19 +101,29 @@ export const main = sdk.setupMain(async ({ effects }) => {
     }),
   )
 
+  const isModpack = store.modLoader === 'modpack'
   const isModded = store.modLoader !== 'vanilla'
   const minecraftImageId = isModded
     ? 'minecraft-server-java21'
     : 'minecraft-server'
 
+  if (isModpack) {
+    await removeTrackedMods('.modrinth-manifest.json')
+  } else if (isModded) {
+    await removeTrackedMods('.modrinth-modpack-manifest.json')
+  } else {
+    await removeTrackedMods('.modrinth-manifest.json')
+    await removeTrackedMods('.modrinth-modpack-manifest.json')
+  }
+
   const minecraftEnv: Record<string, string> = {
     EULA: 'TRUE',
-    TYPE: { vanilla: 'VANILLA', neoforge: 'NEOFORGE', fabric: 'FABRIC' }[
-      store.modLoader
-    ],
-    // Vanilla is pinned to the package's shipped version; modded versions are
-    // user-selected (must be within the java21 image's supported range).
-    VERSION: isModded ? store.modMinecraftVersion : vanillaVersion,
+    TYPE: {
+      vanilla: 'VANILLA',
+      neoforge: 'NEOFORGE',
+      fabric: 'FABRIC',
+      modpack: 'MODRINTH',
+    }[store.modLoader],
     INIT_MEMORY: store.memory.initial,
     MAX_MEMORY: store.memory.maximum,
     // Hand the image our managed RCON password so mc-server-runner can stop the
@@ -133,14 +136,38 @@ export const main = sdk.setupMain(async ({ effects }) => {
     // FileHelper; tell the image not to regenerate it from env vars.
     SKIP_SERVER_PROPERTIES: 'TRUE',
   }
-  if (isModded && store.mods.length > 0) {
-    // itzg auto-downloads these Modrinth projects (and their required deps)
-    // into /data/mods on top of the installed loader. A mod may pin a version,
-    // version ID, or channel via `slug:version` (e.g. `jei:beta`).
+  if (isModpack) {
+    // Omitting VERSION leaves Modrinth project resolution unfiltered.
+    minecraftEnv.MODRINTH_MODPACK = store.modpack.source
+    minecraftEnv.MODRINTH_OVERRIDES_EXCLUSIONS = 'server.properties,start9/**'
+    minecraftEnv.MODRINTH_EXCLUDE_FILES = [
+      'server.properties',
+      'start9/',
+      store.modpack.excludeFiles,
+    ]
+      .filter(Boolean)
+      .join(',')
+    if (store.modpack.forceResync) {
+      minecraftEnv.MODRINTH_FORCE_SYNCHRONIZE = 'TRUE'
+    }
+  } else {
+    minecraftEnv.VERSION = isModded ? store.modMinecraftVersion : vanillaVersion
+  }
+
+  if (isModded && !isModpack) {
     minecraftEnv.MODRINTH_PROJECTS = store.mods
       .map((mod) => (mod.version ? `${mod.slug}:${mod.version}` : mod.slug))
       .join(',')
     minecraftEnv.MODRINTH_DOWNLOAD_DEPENDENCIES = 'required'
+  }
+
+  if (
+    isModpack &&
+    store.modpack.forceResync &&
+    store.modpack.source !== uploadedModpackPath
+  ) {
+    // Direct URL caches bypass MODRINTH_FORCE_SYNCHRONIZE.
+    await rm(sdk.volumes.main.subpath('modpack.mrpack'), { force: true })
   }
 
   return sdk.Daemons.of(effects)
@@ -162,9 +189,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
       },
       ready: {
         display: i18n('Minecraft Server'),
-        gracePeriod: isModded
-          ? moddedHealthGracePeriod
-          : minecraftHealthGracePeriod,
+        gracePeriod: isModpack
+          ? modpackHealthGracePeriod
+          : isModded
+            ? moddedHealthGracePeriod
+            : minecraftHealthGracePeriod,
         fn: async () => {
           const minecraftStatus = await sdk.healthCheck.checkPortListening(
             effects,

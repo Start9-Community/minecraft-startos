@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import {
   defaultAllowFlight,
   defaultDifficulty,
@@ -341,7 +342,7 @@ export const configureServer = sdk.Action.withInput(
       resolvedMemory = memoryProfiles[input.memory.selection]
     }
 
-    await storeJson.merge(effects, { memory: resolvedMemory })
+    const priorMemory = await storeJson.read((store) => store.memory).once()
 
     await serverProperties.merge(effects, {
       gamemode: input.gameMode,
@@ -358,6 +359,10 @@ export const configureServer = sdk.Action.withInput(
       motd: input.motd,
     })
 
-    await effects.restart()
+    await storeJson.merge(effects, { memory: resolvedMemory })
+
+    if (isDeepStrictEqual(priorMemory, resolvedMemory)) {
+      await effects.restart()
+    }
   },
 )
