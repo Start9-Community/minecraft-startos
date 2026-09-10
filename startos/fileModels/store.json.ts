@@ -39,25 +39,22 @@ const memorySchema = z
     maximum: defaultMaximumMemory,
   })
 
-// Where the game container finds an uploaded .mrpack: the Mod Loader action
-// writes the upload there, under the package's own directory on the volume.
-export const uploadedModpackPath = '/data/start9/modpack.mrpack'
+export const uploadedModpackSubpath = 'start9/modpack.mrpack'
+export const uploadedModpackPath = `/data/${uploadedModpackSubpath}`
 
-// A Modrinth modpack, either uploaded or named by URL/slug. The pack decides
-// the Minecraft version and the loader build, so neither is stored alongside.
-export const modpackSchema = z
+const modpackSchema = z
   .object({
-    // `uploadedModpackPath`, or a Modrinth slug, project URL, version URL, or
-    // direct .mrpack URL. Passed to MODRINTH_MODPACK verbatim.
     source: z.string().catch(''),
-    // Files to leave out; newline or comma delimited. See MODRINTH_EXCLUDE_FILES.
     excludeFiles: z.string().optional().catch(undefined),
-    // Re-fetch and re-apply the pack even if it looks unchanged.
     forceResync: z.boolean().catch(false),
+    uploadHash: z.string().optional().catch(undefined),
   })
-  .catch({ source: '', excludeFiles: undefined, forceResync: false })
-
-export type Modpack = z.infer<typeof modpackSchema>
+  .catch({
+    source: '',
+    excludeFiles: undefined,
+    forceResync: false,
+    uploadHash: undefined,
+  })
 
 const storeConfigSchema = z.object({
   memory: memorySchema,
@@ -68,7 +65,6 @@ const storeConfigSchema = z.object({
   modLoader: modLoaderSchema.catch(defaultModLoader),
   modMinecraftVersion: z.string().catch(defaultModMinecraftVersion),
   mods: z.array(modEntrySchema).catch([]),
-  // Only used when modLoader === 'modpack'.
   modpack: modpackSchema,
 })
 

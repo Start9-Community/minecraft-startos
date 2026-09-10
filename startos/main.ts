@@ -1,7 +1,8 @@
-import { rm, writeFile } from 'fs/promises'
+import { rm, writeFile } from 'node:fs/promises'
 import { serverProperties } from './fileModels/server.properties'
 import { storeJson, uploadedModpackPath } from './fileModels/store.json'
 import { i18n } from './i18n'
+import { removeTrackedMods } from './modpacks'
 import { sdk } from './sdk'
 import {
   gamePort,
@@ -19,9 +20,6 @@ const minecraftHealthGracePeriod = 30_000
 // Modded first boot installs the loader and downloads mods before the port
 // opens, so it needs a much longer grace before health failures count.
 const moddedHealthGracePeriod = 300_000
-// A modpack first boot also downloads and verifies every jar in the pack
-// before the port opens; a large pack on a home connection outruns the modded
-// allowance.
 const modpackHealthGracePeriod = 900_000
 const vanillaVersion = '26.2'
 
@@ -75,21 +73,12 @@ server {
 export const main = sdk.setupMain(async ({ effects }) => {
   console.log('Starting Minecraft!')
 
-  // store.json is package-internal — only our actions write to it, so .const()
-  // gives us automatic restart-on-change.
-  //
-  // server.properties is also written by Minecraft itself (the image truncates
-  // and rewrites on every load via Java's FileOutputStream), which produces
-  // a transient empty-file state where rcon.password parses back to the
-  // schema's '' catch fallback — different from the real value — and would
-  // trip .const() before RCON is ready. So we read it .once() and let the
-  // narrow set of actions that mutate only server.properties (createWorld,
-  // selectWorld) call effects.restart() explicitly.
   const store = await storeJson.read().const(effects)
   if (!store) {
     throw new Error('no store.json')
   }
 
+  // Watching transiently empty `server.properties` causes premature restarts.
   const props = await serverProperties.read().once()
   if (!props) {
     throw new Error('no server.properties')
@@ -118,6 +107,15 @@ export const main = sdk.setupMain(async ({ effects }) => {
     ? 'minecraft-server-java21'
     : 'minecraft-server'
 
+  if (isModpack) {
+    await removeTrackedMods('.modrinth-manifest.json')
+  } else if (isModded) {
+    await removeTrackedMods('.modrinth-modpack-manifest.json')
+  } else {
+    await removeTrackedMods('.modrinth-manifest.json')
+    await removeTrackedMods('.modrinth-modpack-manifest.json')
+  }
+
   const minecraftEnv: Record<string, string> = {
     EULA: 'TRUE',
     TYPE: {
@@ -139,25 +137,24 @@ export const main = sdk.setupMain(async ({ effects }) => {
     SKIP_SERVER_PROPERTIES: 'TRUE',
   }
   if (isModpack) {
-    // VERSION is left unset on purpose: the pack's own index pins both the
-    // Minecraft version and the loader build, and the image installs both.
+    // Omitting VERSION leaves Modrinth project resolution unfiltered.
     minecraftEnv.MODRINTH_MODPACK = store.modpack.source
+    minecraftEnv.MODRINTH_OVERRIDES_EXCLUSIONS = 'server.properties,start9/**'
+    minecraftEnv.MODRINTH_EXCLUDE_FILES = [
+      'server.properties',
+      'start9/',
+      store.modpack.excludeFiles,
+    ]
+      .filter(Boolean)
+      .join(',')
     if (store.modpack.forceResync) {
       minecraftEnv.MODRINTH_FORCE_SYNCHRONIZE = 'TRUE'
     }
-    if (store.modpack.excludeFiles) {
-      minecraftEnv.MODRINTH_EXCLUDE_FILES = store.modpack.excludeFiles
-    }
   } else {
-    // Vanilla is pinned to the package's shipped version; modded versions are
-    // user-selected (must be within the java21 image's supported range).
     minecraftEnv.VERSION = isModded ? store.modMinecraftVersion : vanillaVersion
   }
 
-  if (isModded && !isModpack && store.mods.length > 0) {
-    // itzg auto-downloads these Modrinth projects (and their required deps)
-    // into /data/mods on top of the installed loader. A mod may pin a version,
-    // version ID, or channel via `slug:version` (e.g. `jei:beta`).
+  if (isModded && !isModpack) {
     minecraftEnv.MODRINTH_PROJECTS = store.mods
       .map((mod) => (mod.version ? `${mod.slug}:${mod.version}` : mod.slug))
       .join(',')
@@ -169,12 +166,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     store.modpack.forceResync &&
     store.modpack.source !== uploadedModpackPath
   ) {
-    // The image keeps a URL download at `modpack.mrpack` and never refreshes
-    // it, so a pack re-published at the same address is skipped as already
-    // installed; MODRINTH_FORCE_SYNCHRONIZE reaches only the slug path. The
-    // cached copy is the one thing to remove: the image's own manifest stays,
-    // so its cleanup removes what the previous pack shipped and the new one
-    // does not. An uploaded pack is re-read on every start regardless.
+    // Direct URL caches bypass MODRINTH_FORCE_SYNCHRONIZE.
     await rm(sdk.volumes.main.subpath('modpack.mrpack'), { force: true })
   }
 
