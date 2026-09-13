@@ -244,6 +244,13 @@ const dict = {
   'The uploaded file is not a valid Modrinth modpack. It must contain a valid root modrinth.index.json for Minecraft.': 485,
   'Enter a Modrinth project ID, slug, or HTTP(S) URL.': 486,
   'This Modrinth modpack has no supported mod loader. Choose a Forge, NeoForge, Fabric, or Quilt pack.': 487,
+
+  // actions/setup/modLoader.ts — bundled Java runtime selector
+  'Java Version': 490,
+  'Which bundled Java runtime to run the modded server on. Java 21 is the default. Older packs built for Java 8 (e.g. a Forge 1.12.2 pack) need Java 8; NeoForge and current Fabric need Java 21; Java 25 serves the very latest releases. Changing this restarts the server onto a different runtime — pick the Java your pack was built for.': 491,
+  'Java 25': 492,
+  'Java 21': 493,
+  'Java 8': 494,
 } as const
 
 /**

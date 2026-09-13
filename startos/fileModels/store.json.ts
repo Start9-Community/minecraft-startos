@@ -15,6 +15,13 @@ export type ModLoader = z.infer<typeof modLoaderSchema>
 export const defaultModLoader: ModLoader = 'vanilla'
 export const defaultModMinecraftVersion = '1.21.8'
 
+// The bundled Java runtime the modded server runs on. Java 21 is the default,
+// Java 8 serves packs built for Java 8 (e.g. Forge 1.12.2), and Java 25
+// serves the very latest releases. main.ts maps this to a server image.
+export const javaVersionSchema = z.enum(['java25', 'java21', 'java8'])
+export type JavaVersion = z.infer<typeof javaVersionSchema>
+export const defaultJavaVersion: JavaVersion = 'java21'
+
 // A mod is a Modrinth project slug plus an optional version — a version
 // number, a Modrinth version ID, or a release channel (release/beta/alpha).
 // Older stores held a bare slug string; accept that and normalize it.
@@ -63,6 +70,7 @@ const storeConfigSchema = z.object({
   // Modded config (only used when modLoader !== 'vanilla'); see
   // actions/setup/modLoader.ts and main.ts.
   modLoader: modLoaderSchema.catch(defaultModLoader),
+  javaVersion: javaVersionSchema.catch(defaultJavaVersion),
   modMinecraftVersion: z.string().catch(defaultModMinecraftVersion),
   mods: z.array(modEntrySchema).catch([]),
   modpack: modpackSchema,

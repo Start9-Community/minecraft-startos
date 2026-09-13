@@ -35,11 +35,11 @@ A Minecraft Java Edition server, packaged from [itzg's server image](https://git
 
 ## Image and Container Runtime
 
-Four images, and **which server image runs is decided at start**.
+Five images, and **which server image runs is decided at start**.
 
 | Property      | Value                                                         |
 | ------------- | ------------------------------------------------------------- |
-| Images        | Two `itzg/minecraft-server` tags, an `itzg/rcon` build, nginx |
+| Images        | Three `itzg/minecraft-server` tags, an `itzg/rcon` build, nginx |
 | Architectures | x86_64, aarch64                                               |
 | Command       | Each image's own entrypoint                                   |
 
@@ -49,9 +49,9 @@ Four images, and **which server image runs is decided at start**.
 | `rcon-sub`             | The web admin console, speaking RCON to the server |
 | `rcon-proxy-sub`       | nginx, unifying the console's two ports into one   |
 
-**Vanilla and modded run on different Java runtimes**, so the package ships both server images and picks one from the configured mod loader: the newer runtime for vanilla and the bundled modded runtime for NeoForge, Fabric, and Modrinth modpacks. A selected loader, version, and modpack must support its runtime. Switching loaders swaps the image.
+**Different Java runtimes cover vanilla and the modded generations.** The package ships three server images — Java 25, Java 21, and Java 8 — and picks one from the configured mod loader and Java version: vanilla 26.2 runs on Java 25, modded runs on the Java the user chose in the Mod Loader action (Java 21 by default), and Java 8 serves older modpacks such as Forge 1.12.2 packs. A selected loader, version, modpack, and Java runtime must support each other. Switching loaders or the Java version swaps the image.
 
-Both server images and the console's base are **pinned by digest**, so a rebuild produces the same bits rather than following a moving tag.
+All server images and the console's base are **pinned by digest**, so a rebuild produces the same bits rather than following a moving tag.
 
 **The console image is built here, not consumed as-is.** It applies two patches to rcon-web-admin's browser code — a `history.pushState` call that throws and takes the page down with it, and a dropdown that renders empty until it is refreshed. The build fails loudly if either patch no longer applies, rather than silently shipping an unpatched console.
 
@@ -69,7 +69,7 @@ One volume, holding the server's entire data directory.
 | ----------------------- | ----------- | ---------------------------------------------------------------- |
 | `<world-name>/`         | Minecraft   | One directory per world, each with `level.dat`                   |
 | `server.properties`     | Both        | The server configuration                                         |
-| `start9/store.json`     | Actions     | Memory, credentials, mod loader, mods, and modpack configuration |
+| `start9/store.json`     | Actions     | Memory, credentials, mod loader, Java version, mods, and modpack configuration |
 | `start9/modpack.mrpack` | Actions     | An uploaded modpack, read by the image on start                  |
 | `rcon-db/`              | The console | Its own settings and widgets                                     |
 | `mods/`                 | The image   | Mods downloaded for a modded server, or installed from a pack    |
@@ -96,7 +96,7 @@ The RCON password is generated once at install and lives in the same file. It is
 
 `server.properties` also holds everything the **Configure Server** action edits — game mode, difficulty, distances, PvP, whitelist enforcement, MOTD — with each field validated and range-checked on read, so a hand-edited nonsense value falls back to its default rather than failing the start.
 
-The store holds what is not a Minecraft setting: the memory profile, the console's credentials, and the mod loader — with its Minecraft version and mod list, or, for a modpack, the pack's source and options.
+The store holds what is not a Minecraft setting: the memory profile, the console's credentials, and the mod loader — with its Java runtime, Minecraft version and mod list, or, for a modpack, the pack's source and options.
 
 ## Dependencies
 
@@ -145,9 +145,10 @@ The gameplay settings and the memory allocation.
 
 #### Mod Loader
 
-Vanilla, NeoForge, or Fabric with the Minecraft version and the mod list for the modded options — or a Modrinth modpack, which brings its own Minecraft version, loader build, mods, configs and overrides.
+Vanilla, NeoForge, or Fabric with the Minecraft version, the Java runtime, and the mod list for the modded options — or a Modrinth modpack, which brings its own Minecraft version, loader build, mods, configs and overrides.
 
-- **What it changes:** the loader, the version, and the mods in the store — and through them the server image that runs. For a modpack: the pack's source (a slug, a project or version URL, a direct `.mrpack` URL, or an uploaded file), whether to force a re-sync, and files to exclude.
+- **What it changes:** the loader, Minecraft version, Java runtime, and mods in the store — and through them the server image that runs. For a modpack: the pack's source (a slug, a project or version URL, a direct `.mrpack` URL, or an uploaded file), whether to force a re-sync, and files to exclude.
+- **Java Version picks the runtime.** Java 21 (the default) runs NeoForge and current Fabric; Java 8 runs older packs, such as a Forge 1.12.2 pack; Java 25 serves the very latest releases. Vanilla always runs on Java 25 and does not expose the choice. Changing it restarts the server onto a different image, so pick the Java the pack was built for.
 - **Cost:** the service restarts onto a different image and, for a modded start, re-downloads mods; a modpack start installs the pack.
 - **Repeat safety:** idempotent, pre-filled. Mods are Modrinth project slugs, each optionally pinned to a version or a release channel; required dependencies are pulled automatically. An uploaded pack re-opens on the upload variant with the file empty, meaning "keep it", so the options can be changed without uploading again.
 - **An uploaded pack is stored on the volume** at `start9/modpack.mrpack`. The action enforces a 512 MiB limit and validates the root `modrinth.index.json` before replacing it. A validation or staging failure preserves the previous upload, and a SHA-256 identity in `store.json` restarts the service only when the uploaded bytes change.
@@ -259,12 +260,12 @@ A restored instance comes back with the same worlds, console and RCON passwords,
 
 ```yaml
 package_id: minecraft
-image: itzg/minecraft-server # two digest-pinned tags: vanilla and modded runtimes
+image: itzg/minecraft-server # three digest-pinned tags: Java 25, Java 21, and Java 8 runtimes
 architectures:
   - x86_64
   - aarch64
 subcontainers:
-  - minecraft-server-sub # image chosen at start from store.modLoader
+  - minecraft-server-sub # image chosen at start from store.modLoader + store.javaVersion
   - rcon-sub # rcon-web-admin, built here from a digest-pinned itzg/rcon plus two frontend patches
   - rcon-proxy-sub # nginx; unifies the console's http + websocket ports and rewrites /wsconfig
 volumes:

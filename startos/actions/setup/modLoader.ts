@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import {
+  defaultJavaVersion,
   defaultModLoader,
   defaultModMinecraftVersion,
   storeJson,
@@ -46,6 +47,23 @@ type VersionValue =
   | { selection: 'alpha'; value: {} }
   | { selection: 'pinned'; value: { version: string } }
 
+// The bundled Java runtime the server runs on. Older modpacks built for
+// Java 8 (e.g. Forge 1.12.2) need Java 8; NeoForge and current Fabric
+// need Java 21; Java 25 serves the very latest releases. main.ts maps the
+// selection to a server image.
+const javaVersionField = Value.union({
+  name: i18n('Java Version'),
+  description: i18n(
+    'Which bundled Java runtime to run the modded server on. Java 21 is the default. Older packs built for Java 8 (e.g. a Forge 1.12.2 pack) need Java 8; NeoForge and current Fabric need Java 21; Java 25 serves the very latest releases. Changing this restarts the server onto a different runtime — pick the Java your pack was built for.',
+  ),
+  default: defaultJavaVersion,
+  variants: Variants.of({
+    java25: { name: i18n('Java 25'), spec: InputSpec.of({}) },
+    java21: { name: i18n('Java 21'), spec: InputSpec.of({}) },
+    java8: { name: i18n('Java 8'), spec: InputSpec.of({}) },
+  }),
+})
+
 const maximumExclusionsBytes = 64 * 1024
 const maximumExclusionsCharacters = 64 * 1024
 
@@ -88,6 +106,7 @@ const toVersionValue = (version: string | undefined): VersionValue =>
       : { selection: 'pinned', value: { version } }
 
 const moddedSpec = InputSpec.of({
+  javaVersion: javaVersionField,
   minecraftVersion: Value.text({
     name: i18n('Minecraft Version'),
     description: i18n(
@@ -129,6 +148,7 @@ const moddedSpec = InputSpec.of({
 })
 
 const modpackSpec = InputSpec.of({
+  javaVersion: javaVersionField,
   source: Value.union({
     name: i18n('Modpack Source'),
     description: i18n(
@@ -250,6 +270,7 @@ export const modLoader = sdk.Action.withInput(
               : { selection: 'url' as const, value: { url: source } },
             excludeFiles: excludeFiles ?? null,
             forceResync: store.modpack.forceResync,
+            javaVersion: { selection: store.javaVersion, value: {} },
           },
         },
       }
@@ -259,6 +280,7 @@ export const modLoader = sdk.Action.withInput(
       loader: {
         selection: store.modLoader,
         value: {
+          javaVersion: { selection: store.javaVersion, value: {} },
           minecraftVersion: store.modMinecraftVersion,
           mods: store.mods.map((mod) => ({
             slug: mod.slug,
@@ -276,7 +298,8 @@ export const modLoader = sdk.Action.withInput(
 
     if (input.loader.selection === 'modpack') {
       const current = await storeJson.read().once()
-      const { source, excludeFiles, forceResync } = input.loader.value
+      const { source, excludeFiles, forceResync, javaVersion } =
+        input.loader.value
       const normalizedExclusions = excludeFiles?.trim() || undefined
       if (
         normalizedExclusions &&
@@ -314,6 +337,7 @@ export const modLoader = sdk.Action.withInput(
           exclusionsChanged)
       const nextConfiguration = (uploadHash: string | undefined) => ({
         modLoader: 'modpack' as const,
+        javaVersion: javaVersion.selection,
         modpack: {
           source: packSource,
           excludeFiles: normalizedExclusions,
@@ -349,6 +373,7 @@ export const modLoader = sdk.Action.withInput(
 
     await storeJson.merge(effects, {
       modLoader: input.loader.selection,
+      javaVersion: input.loader.value.javaVersion.selection,
       modMinecraftVersion: input.loader.value.minecraftVersion,
       mods: input.loader.value.mods.map((mod) => {
         const version = mod.version

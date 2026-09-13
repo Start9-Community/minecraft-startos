@@ -22,12 +22,21 @@ export const manifest = setupManifest({
       },
       arch: ['x86_64', 'aarch64'],
     },
-    // Modded loaders (NeoForge/Fabric) target Java 21; vanilla 26.2 needs
-    // Java 25. main.ts selects the image to match the configured loader.
+    // Modded loaders run on one of three bundled Java runtimes, chosen by the
+    // user (Java 25 for the latest releases, Java 21 by default, Java 8 for
+    // older packs like Forge 1.12.2). Vanilla 26.2 needs Java 25. main.ts
+    // selects the image to match the configured loader and Java version.
     'minecraft-server-java21': {
       source: {
         dockerTag:
           'itzg/minecraft-server:java21@sha256:4e233c1ae0231918cdff527c5d9be42eafb52c4eb0a5cf2e631e5d2305bd89f6',
+      },
+      arch: ['x86_64', 'aarch64'],
+    },
+    'minecraft-server-java8': {
+      source: {
+        dockerTag:
+          'itzg/minecraft-server:java8@sha256:860b198305e6bfe1bdec8abee2b3a0ef4208edf2e9cbf7e09cb3df97bef2bd6c',
       },
       arch: ['x86_64', 'aarch64'],
     },

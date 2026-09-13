@@ -1,47 +1,41 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '26.2:5',
+  version: '26.2:6',
   releaseNotes: {
     en_US:
-      'Mod Loader can now install a Modrinth modpack. Give it a modpack slug, ' +
-      'a project or version URL, or upload a .mrpack, and the server installs ' +
-      "the pack's mods, configs and overrides along with the exact loader " +
-      'build the pack was built against. Client-only files are skipped ' +
-      'automatically. The existing vanilla, NeoForge and Fabric options are ' +
-      'unchanged.',
+      'Mod Loader now lets you choose the Java runtime the modded server runs ' +
+      'on: Java 25, Java 21 (the default), or Java 8. Older modpacks built ' +
+      'for Java 8, such as Forge 1.12.2 packs, run on Java 8; NeoForge ' +
+      'and current Fabric run on Java 21. The choice applies to Modrinth ' +
+      'modpacks and to hand-picked NeoForge/Fabric mods.',
     es_ES:
-      'El cargador de mods ya puede instalar un modpack de Modrinth. Indica el ' +
-      'identificador del modpack, la URL de un proyecto o de una versión, o sube ' +
-      'un archivo .mrpack, y el servidor instalará los mods, las configuraciones ' +
-      'y los overrides del pack junto con la versión exacta del cargador para la ' +
-      'que fue creado. Los archivos exclusivos del cliente se omiten ' +
-      'automáticamente. Las opciones existentes de vanilla, NeoForge y Fabric no ' +
-      'cambian.',
+      'El cargador de mods ahora permite elegir el runtime de Java con el que ' +
+      'se ejecuta el servidor con mods: Java 25, Java 21 (el predeterminado) o ' +
+      'Java 8. Los modpacks antiguos creados para Java 8, como los packs ' +
+      'de Forge 1.12.2, deben ejecutarse con Java 8; NeoForge y Fabric actuales ' +
+      'se ejecutan con Java 21. La elección se aplica a los modpacks de Modrinth ' +
+      'y a los mods elegidos a mano de NeoForge/Fabric.',
     de_DE:
-      'Der Mod-Loader kann jetzt ein Modrinth-Modpack installieren. Geben Sie ' +
-      'einen Modpack-Slug oder eine Projekt- bzw. Versions-URL an oder laden Sie ' +
-      'eine .mrpack-Datei hoch, und der Server installiert die Mods, ' +
-      'Konfigurationen und Overrides des Packs zusammen mit genau dem ' +
-      'Loader-Build, für den das Pack erstellt wurde. Nur für den Client ' +
-      'bestimmte Dateien werden automatisch übersprungen. Die bestehenden ' +
-      'Optionen für Vanilla, NeoForge und Fabric bleiben unverändert.',
+      'Der Mod-Loader lässt dich jetzt die Java-Laufzeit wählen, auf der der ' +
+      'modifizierte Server läuft: Java 25, Java 21 (die Standardeinstellung) ' +
+      'oder Java 8. Ältere Modpacks, die für Java 8 gebaut wurden, wie ' +
+      'z. B. Forge-1.12.2-Packs, laufen unter Java 8; NeoForge und aktuelles ' +
+      'Fabric laufen unter Java 21. Die Wahl gilt für Modrinth-Modpacks und für ' +
+      'manuell ausgewählte NeoForge-/Fabric-Mods.',
     pl_PL:
-      'Moduł ładujący mody może teraz zainstalować modpack z Modrinth. Podaj ' +
-      'identyfikator modpacka, adres URL projektu lub wersji albo prześlij plik ' +
-      '.mrpack, a serwer zainstaluje mody, konfiguracje i pliki nadpisujące z ' +
-      'paczki wraz z dokładną wersją loadera, dla której paczka została ' +
-      'zbudowana. Pliki przeznaczone wyłącznie dla klienta są pomijane ' +
-      'automatycznie. Istniejące opcje vanilla, NeoForge i Fabric pozostają bez ' +
-      'zmian.',
+      'Moduł ładujący mody umożliwia teraz wybór środowiska Java, na którym ' +
+      'działa serwer z modami: Java 25, Java 21 (domyślnie) lub Java 8. Starsze ' +
+      'modpaki stworzone dla Javy 8, np. modpaki do Forge 1.12.2, działają ' +
+      'na Javie 8; NeoForge i aktualny Fabric działają na Javie 21. Wybór ' +
+      'obejmuje modpaki z Modrinth oraz ręcznie wybrane mody NeoForge/Fabric.',
     fr_FR:
-      'Le chargeur de mods peut désormais installer un modpack Modrinth. ' +
-      "Indiquez l'identifiant du modpack, l'URL d'un projet ou d'une version, ou " +
-      'téléversez un fichier .mrpack, et le serveur installera les mods, les ' +
-      'configurations et les overrides du pack ainsi que la version exacte du ' +
-      'chargeur pour laquelle il a été conçu. Les fichiers réservés au client ' +
-      'sont ignorés automatiquement. Les options vanilla, NeoForge et Fabric ' +
-      'existantes restent inchangées.',
+      'Le chargeur de mods permet désormais de choisir le runtime Java sur ' +
+      'lequel le serveur moddé tourne : Java 25, Java 21 (par défaut) ou Java 8. ' +
+      'Les vieux modpacks conçus pour Java 8, comme les packs Forge 1.12.2, ' +
+      'tournent sous Java 8 ; NeoForge et Fabric actuels tournent sous Java 21. ' +
+      "Le choix s'applique aux modpacks Modrinth et aux mods NeoForge/Fabric " +
+      'choisis manuellement.',
   },
   migrations: {
     up: async ({ effects }) => {},

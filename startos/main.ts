@@ -1,6 +1,10 @@
 import { rm, writeFile } from 'node:fs/promises'
 import { serverProperties } from './fileModels/server.properties'
-import { storeJson, uploadedModpackPath } from './fileModels/store.json'
+import {
+  storeJson,
+  uploadedModpackPath,
+  type JavaVersion,
+} from './fileModels/store.json'
 import { i18n } from './i18n'
 import { removeTrackedMods } from './modpacks'
 import { sdk } from './sdk'
@@ -103,8 +107,19 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   const isModpack = store.modLoader === 'modpack'
   const isModded = store.modLoader !== 'vanilla'
-  const minecraftImageId = isModded
-    ? 'minecraft-server-java21'
+  // The modded runtime is selected explicitly: Java 21 (default) covers
+  // NeoForge and current Fabric; Java 8 serves older packs built for
+  // Java 8 (e.g. Forge 1.12.2); Java 25 serves the very latest releases.
+  // Vanilla 26.2 always runs on the Java 25 image.
+  type ServerImageId =
+    'minecraft-server' | 'minecraft-server-java21' | 'minecraft-server-java8'
+  const javaImageId: Record<JavaVersion, ServerImageId> = {
+    java25: 'minecraft-server',
+    java21: 'minecraft-server-java21',
+    java8: 'minecraft-server-java8',
+  }
+  const minecraftImageId: ServerImageId = isModded
+    ? javaImageId[store.javaVersion]
     : 'minecraft-server'
 
   if (isModpack) {
