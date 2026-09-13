@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import {
+  defaultJavaVersion,
   defaultModLoader,
   defaultModMinecraftVersion,
   storeJson,
@@ -46,6 +47,20 @@ type VersionValue =
   | { selection: 'alpha'; value: {} }
   | { selection: 'pinned'; value: { version: string } }
 
+const javaVersionField = Value.union({
+  name: i18n('Java Version'),
+  description: i18n(
+    'The Java the server runs on, downloaded on first use. Java 21 runs NeoForge and current Fabric; Java 17 runs Minecraft 1.17 to 1.20 loaders; Java 8 runs older packs such as Forge 1.12.2. Pick the Java the loader or pack was built for.',
+  ),
+  default: defaultJavaVersion,
+  variants: Variants.of({
+    java25: { name: i18n('Java 25'), spec: InputSpec.of({}) },
+    java21: { name: i18n('Java 21'), spec: InputSpec.of({}) },
+    java17: { name: i18n('Java 17'), spec: InputSpec.of({}) },
+    java8: { name: i18n('Java 8'), spec: InputSpec.of({}) },
+  }),
+})
+
 const maximumExclusionsBytes = 64 * 1024
 const maximumExclusionsCharacters = 64 * 1024
 
@@ -70,10 +85,12 @@ const sameModpackConfiguration = (
   current: StoreConfig | null,
   next: {
     modLoader: 'modpack'
+    javaVersion: StoreConfig['javaVersion']
     modpack: StoreConfig['modpack']
   },
 ): boolean =>
   current?.modLoader === next.modLoader &&
+  current.javaVersion === next.javaVersion &&
   current.modpack.source === next.modpack.source &&
   (current.modpack.excludeFiles?.trim() || undefined) ===
     next.modpack.excludeFiles &&
@@ -91,13 +108,14 @@ const moddedSpec = InputSpec.of({
   minecraftVersion: Value.text({
     name: i18n('Minecraft Version'),
     description: i18n(
-      'Minecraft version for the modded server. It must be supported by the loader, the mods, and the bundled modded runtime. Every client must run this version.',
+      'Minecraft version for the modded server. It must be supported by the loader, the mods, and the chosen Java. Every client must run this version.',
     ),
     required: true,
     default: defaultModMinecraftVersion,
     placeholder: '1.21.8',
     masked: false,
   }),
+  javaVersion: javaVersionField,
   mods: Value.list(
     List.obj(
       {
@@ -142,7 +160,7 @@ const modpackSpec = InputSpec.of({
           url: Value.text({
             name: i18n('Modpack'),
             description: i18n(
-              'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file. The pack must support the bundled modded runtime.',
+              'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file.',
             ),
             required: true,
             default: null,
@@ -157,7 +175,7 @@ const modpackSpec = InputSpec.of({
           file: Value.file({
             name: i18n('Modpack File'),
             description: i18n(
-              'A .mrpack exported from a launcher that supports the bundled modded runtime. Uploads are limited to 512 MiB and kept on the server volume. Leave empty to keep the pack already uploaded and change only the options below.',
+              'A .mrpack exported from a launcher. Uploads are limited to 512 MiB and kept on the server volume. Leave empty to keep the pack already uploaded and change only the options below.',
             ),
             extensions: ['.mrpack'],
             required: false,
@@ -166,6 +184,7 @@ const modpackSpec = InputSpec.of({
       },
     }),
   }),
+  javaVersion: javaVersionField,
   forceResync: Value.toggle({
     name: i18n('Force Re-sync'),
     description: i18n(
@@ -209,7 +228,7 @@ const inputSpec = InputSpec.of({
   loader: Value.union({
     name: i18n('Mod Loader'),
     description: i18n(
-      'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric use the bundled modded runtime and let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.',
+      'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.',
     ),
     default: defaultModLoader,
     variants: loaderVariants,
@@ -224,7 +243,7 @@ export const modLoader = sdk.Action.withInput(
       'Choose vanilla, NeoForge, Fabric, or a Modrinth modpack, and install mods',
     ),
     warning: i18n(
-      'Changing the loader or Minecraft version swaps the server engine. Existing worlds may not load — create a new world after switching. For hand-picked mods, every player needs the same loader and Minecraft version plus the client-required mods at matching versions. For a modpack, every player needs the matching client pack. Modded servers also need more memory — set Standard or High under Configure Server.',
+      'Changing the loader, Minecraft version, or Java swaps the server engine. Existing worlds may not load — create a new world after switching. For hand-picked mods, every player needs the same loader and Minecraft version plus the client-required mods at matching versions. For a modpack, every player needs the matching client pack. Modded servers also need more memory — set Standard or High under Configure Server.',
     ),
     allowedStatuses: 'any',
     group: i18n('Setup'),
@@ -248,6 +267,7 @@ export const modLoader = sdk.Action.withInput(
             source: isUpload(source)
               ? { selection: 'upload' as const, value: { file: null } }
               : { selection: 'url' as const, value: { url: source } },
+            javaVersion: { selection: store.javaVersion, value: {} },
             excludeFiles: excludeFiles ?? null,
             forceResync: store.modpack.forceResync,
           },
@@ -260,6 +280,7 @@ export const modLoader = sdk.Action.withInput(
         selection: store.modLoader,
         value: {
           minecraftVersion: store.modMinecraftVersion,
+          javaVersion: { selection: store.javaVersion, value: {} },
           mods: store.mods.map((mod) => ({
             slug: mod.slug,
             version: toVersionValue(mod.version),
@@ -276,7 +297,8 @@ export const modLoader = sdk.Action.withInput(
 
     if (input.loader.selection === 'modpack') {
       const current = await storeJson.read().once()
-      const { source, excludeFiles, forceResync } = input.loader.value
+      const { source, javaVersion, excludeFiles, forceResync } =
+        input.loader.value
       const normalizedExclusions = excludeFiles?.trim() || undefined
       if (
         normalizedExclusions &&
@@ -314,6 +336,7 @@ export const modLoader = sdk.Action.withInput(
           exclusionsChanged)
       const nextConfiguration = (uploadHash: string | undefined) => ({
         modLoader: 'modpack' as const,
+        javaVersion: javaVersion.selection,
         modpack: {
           source: packSource,
           excludeFiles: normalizedExclusions,
@@ -350,6 +373,7 @@ export const modLoader = sdk.Action.withInput(
     await storeJson.merge(effects, {
       modLoader: input.loader.selection,
       modMinecraftVersion: input.loader.value.minecraftVersion,
+      javaVersion: input.loader.value.javaVersion.selection,
       mods: input.loader.value.mods.map((mod) => {
         const version = mod.version
         if (version.selection === 'pinned') {

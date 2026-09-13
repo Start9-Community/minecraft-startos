@@ -22,15 +22,6 @@ export const manifest = setupManifest({
       },
       arch: ['x86_64', 'aarch64'],
     },
-    // Modded loaders (NeoForge/Fabric) target Java 21; vanilla 26.2 needs
-    // Java 25. main.ts selects the image to match the configured loader.
-    'minecraft-server-java21': {
-      source: {
-        dockerTag:
-          'itzg/minecraft-server:java21@sha256:4e233c1ae0231918cdff527c5d9be42eafb52c4eb0a5cf2e631e5d2305bd89f6',
-      },
-      arch: ['x86_64', 'aarch64'],
-    },
     rcon: {
       source: { dockerBuild: { dockerfile: './rcon.Dockerfile' } },
       arch: ['x86_64', 'aarch64'],

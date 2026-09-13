@@ -1,6 +1,6 @@
 # Updating the upstream version
 
-This package wraps `itzg/minecraft-server` (the canonical containerized Minecraft Java Edition server) and ships two sidecars (`itzg/rcon` and an `nginx` proxy). The "upstream version" therefore has **three independently versioned image sources** plus the Mojang Minecraft release that the `itzg/minecraft-server` image launches via its `VERSION` env. The Minecraft release is coupled to the `itzg/minecraft-server` base tag — a `VERSION` only runs on the JDK the chosen tag provides — so those two must always move together.
+This package wraps `itzg/minecraft-server` (the canonical containerized Minecraft Java Edition server) and ships two sidecars (`itzg/rcon` and an `nginx` proxy). The "upstream version" therefore has **three independently versioned image sources** plus the Mojang Minecraft release that the `itzg/minecraft-server` image launches via its `VERSION` env. The Minecraft release is coupled to the `itzg/minecraft-server` base tag — vanilla runs on the Java the chosen tag bundles — so those two must always move together. The Javas a modded server can run on are downloaded from Adoptium at start, not shipped, so they have no pin here.
 
 ## Determining the upstream version
 
@@ -13,7 +13,7 @@ This package wraps `itzg/minecraft-server` (the canonical containerized Minecraf
     | jq -r '.results[] | "\(.name)\t\(.digest)"'
   ```
 - Pinned in `startos/manifest/index.ts` at `images.minecraft-server.source.dockerTag` (e.g. `itzg/minecraft-server:java25@sha256:…`).
-- **There are two pins for this image, and both move together.** `images.minecraft-server` carries the newer Java line that vanilla needs, and `images.minecraft-server-java21` the one NeoForge and Fabric target; `main.ts` picks between them from the configured mod loader. Bumping one and not the other leaves half the loaders on a stale image.
+- **The base tag's Java is also named in code.** `bundledJavaVersion` in `startos/main.ts` and the `javaVersionSchema` enum in `startos/fileModels/store.json.ts` (with its variant in `startos/actions/setup/modLoader.ts`) name the bundled Java; moving to a tag with a newer Java means adding that version to the enum and pointing `bundledJavaVersion` at it, or the bundled Java is downloaded a second time.
 
 **Mojang Minecraft release** — the Minecraft server release the image starts.
 
@@ -49,8 +49,8 @@ This package wraps `itzg/minecraft-server` (the canonical containerized Minecraf
 
 **`itzg/minecraft-server` + Minecraft release** (move together):
 
-1. In `startos/manifest/index.ts`, update the `dockerTag` for the `minecraft-server` image to `itzg/minecraft-server:<base>@sha256:<digest>` using the new base tag (e.g. `java25`, `java21`) and the digest from the Docker Hub query above.
-2. In `startos/main.ts`, update `vanillaVersion` to the new Mojang release. Confirm the release runs on the JDK provided by the chosen base tag — the vanilla and modded tags are different Java lines, and `main` selects between them by mod loader.
+1. In `startos/manifest/index.ts`, update the `dockerTag` for the `minecraft-server` image to `itzg/minecraft-server:<base>@sha256:<digest>` using the new base tag (e.g. `java25`) and the digest from the Docker Hub query above. If the base tag's Java changed, update `bundledJavaVersion` and the `javaVersionSchema` enum as described above.
+2. In `startos/main.ts`, update `vanillaVersion` to the new Mojang release. Confirm the release runs on the Java the chosen base tag bundles — vanilla has no other Java to fall back on.
 
 **`itzg/rcon`**: in `rcon.Dockerfile`, update the `FROM itzg/rcon@sha256:<digest>` line to the new digest. Its `apply-patches.js` throws when a snippet no longer matches, which is deliberate — a silently unpatched rcon-web-admin has a `pushState` that takes the page down and a dropdown that renders empty. Re-derive the patch rather than dropping it.
 

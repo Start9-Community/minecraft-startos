@@ -80,11 +80,11 @@ const dict = {
   // actions/setup/modLoader.ts
   'Mod Loader': 150,
   'Choose vanilla, NeoForge, Fabric, or a Modrinth modpack, and install mods': 151,
-  'Changing the loader or Minecraft version swaps the server engine. Existing worlds may not load — create a new world after switching. For hand-picked mods, every player needs the same loader and Minecraft version plus the client-required mods at matching versions. For a modpack, every player needs the matching client pack. Modded servers also need more memory — set Standard or High under Configure Server.': 152,
+  'Changing the loader, Minecraft version, or Java swaps the server engine. Existing worlds may not load — create a new world after switching. For hand-picked mods, every player needs the same loader and Minecraft version plus the client-required mods at matching versions. For a modpack, every player needs the matching client pack. Modded servers also need more memory — set Standard or High under Configure Server.': 152,
   'Vanilla (no mods) — default': 154,
   'NeoForge (recommended for mods)': 155,
   Fabric: 156,
-  'Minecraft version for the modded server. It must be supported by the loader, the mods, and the bundled modded runtime. Every client must run this version.': 157,
+  'Minecraft version for the modded server. It must be supported by the loader, the mods, and the chosen Java. Every client must run this version.': 157,
   Mods: 158,
   'Mods to install from Modrinth. Dependencies download automatically. Every client must install the client-required mods at matching versions.': 159,
   'Modrinth Project Slug': 160,
@@ -228,14 +228,14 @@ const dict = {
   'Where to get the pack. Modrinth project sources are checked on start, direct .mrpack URLs are cached, and uploaded packs are kept on the volume.': 469,
   'Modrinth project or URL': 470,
   Modpack: 471,
-  'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file. The pack must support the bundled modded runtime.': 472,
+  'A Modrinth modpack slug or project ID, a project page URL, a version page URL (to pin one version), or a direct URL to a .mrpack file.': 472,
   'Upload a .mrpack file': 473,
   'Modpack File': 474,
-  'A .mrpack exported from a launcher that supports the bundled modded runtime. Uploads are limited to 512 MiB and kept on the server volume. Leave empty to keep the pack already uploaded and change only the options below.': 475,
+  'A .mrpack exported from a launcher. Uploads are limited to 512 MiB and kept on the server volume. Leave empty to keep the pack already uploaded and change only the options below.': 475,
   'Exclude Files': 476,
   'Optional. One entry per line. Use this only when a pack marks a client-only mod as server-compatible, which shows up as a crash on start naming that mod. Each entry is a case-insensitive substring of the file path.': 477,
   'Modrinth Modpack (installs mods, configs and loader together)': 478,
-  'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric use the bundled modded runtime and let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.': 479,
+  'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.': 479,
   'Force Re-sync': 480,
   'Turn on when a pack has changed without its source changing. Modrinth project sources are checked on start, but direct .mrpack URLs stay cached unless Force Re-sync is enabled. Uploaded packs remain on the volume. Force Re-sync stays enabled until you turn it off.': 481,
   'Choose a .mrpack file to upload, or give a URL instead.': 482,
@@ -244,6 +244,14 @@ const dict = {
   'The uploaded file is not a valid Modrinth modpack. It must contain a valid root modrinth.index.json for Minecraft.': 485,
   'Enter a Modrinth project ID, slug, or HTTP(S) URL.': 486,
   'This Modrinth modpack has no supported mod loader. Choose a Forge, NeoForge, Fabric, or Quilt pack.': 487,
+
+  // actions/setup/modLoader.ts — Java runtime selection
+  'Java Version': 488,
+  'The Java the server runs on, downloaded on first use. Java 21 runs NeoForge and current Fabric; Java 17 runs Minecraft 1.17 to 1.20 loaders; Java 8 runs older packs such as Forge 1.12.2. Pick the Java the loader or pack was built for.': 489,
+  'Java 25': 490,
+  'Java 21': 491,
+  'Java 17': 492,
+  'Java 8': 493,
 } as const
 
 /**

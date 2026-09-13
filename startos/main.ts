@@ -1,6 +1,10 @@
 import { rm, writeFile } from 'node:fs/promises'
 import { serverProperties } from './fileModels/server.properties'
-import { storeJson, uploadedModpackPath } from './fileModels/store.json'
+import {
+  type JavaVersion,
+  storeJson,
+  uploadedModpackPath,
+} from './fileModels/store.json'
 import { i18n } from './i18n'
 import { removeTrackedMods } from './modpacks'
 import { sdk } from './sdk'
@@ -22,6 +26,7 @@ const minecraftHealthGracePeriod = 30_000
 const moddedHealthGracePeriod = 300_000
 const modpackHealthGracePeriod = 900_000
 const vanillaVersion = '26.2'
+const bundledJavaVersion: JavaVersion = 'java25'
 
 const proxyConfig = ({
   proxyPort,
@@ -103,9 +108,25 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   const isModpack = store.modLoader === 'modpack'
   const isModded = store.modLoader !== 'vanilla'
-  const minecraftImageId = isModded
-    ? 'minecraft-server-java21'
-    : 'minecraft-server'
+
+  const minecraftSub = sdk.SubContainer.of(
+    effects,
+    { imageId: 'minecraft-server' },
+    sdk.Mounts.of()
+      .mountVolume({
+        volumeId: 'main',
+        subpath: null,
+        mountpoint: '/data',
+        readonly: false,
+      })
+      .mountAssets({ subpath: null, mountpoint: '/start9' }),
+    'minecraft-server-sub',
+  )
+
+  const jre =
+    isModded && store.javaVersion !== bundledJavaVersion
+      ? `/data/start9/jre/${store.javaVersion}`
+      : undefined
 
   if (isModpack) {
     await removeTrackedMods('.modrinth-manifest.json')
@@ -135,6 +156,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
     // We manage server.properties directly via the serverProperties
     // FileHelper; tell the image not to regenerate it from env vars.
     SKIP_SERVER_PROPERTIES: 'TRUE',
+  }
+  if (jre) {
+    // mc-image-helper keeps the image's Java through JAVA_HOME; the server takes `java` from PATH.
+    minecraftEnv.PATH = `${jre}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`
   }
   if (isModpack) {
     // Omitting VERSION leaves Modrinth project resolution unfiltered.
@@ -171,18 +196,24 @@ export const main = sdk.setupMain(async ({ effects }) => {
   }
 
   return sdk.Daemons.of(effects)
+    .addOneshot('ensure-jre', () =>
+      jre
+        ? {
+            subcontainer: minecraftSub,
+            exec: {
+              command: [
+                'bash',
+                '/start9/ensure-jre.sh',
+                store.javaVersion.slice(4),
+                jre,
+              ],
+            },
+            requires: [],
+          }
+        : null,
+    )
     .addDaemon('minecraft-server', {
-      subcontainer: sdk.SubContainer.of(
-        effects,
-        { imageId: minecraftImageId },
-        sdk.Mounts.of().mountVolume({
-          volumeId: 'main',
-          subpath: null,
-          mountpoint: '/data',
-          readonly: false,
-        }),
-        'minecraft-server-sub',
-      ),
+      subcontainer: minecraftSub,
       exec: {
         command: sdk.useEntrypoint(),
         env: minecraftEnv,
@@ -214,7 +245,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
           })
         },
       },
-      requires: [],
+      requires: jre ? ['ensure-jre'] : [],
     })
     .addDaemon('rcon-admin', {
       subcontainer: sdk.SubContainer.of(
