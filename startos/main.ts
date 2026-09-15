@@ -184,6 +184,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
       .map((mod) => (mod.version ? `${mod.slug}:${mod.version}` : mod.slug))
       .join(',')
     minecraftEnv.MODRINTH_DOWNLOAD_DEPENDENCIES = 'required'
+    if (store.loaderVersion) {
+      minecraftEnv[
+        store.modLoader === 'neoforge'
+          ? 'NEOFORGE_VERSION'
+          : 'FABRIC_LOADER_VERSION'
+      ] = store.loaderVersion
+    }
   }
 
   if (

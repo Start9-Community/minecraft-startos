@@ -252,6 +252,12 @@ const dict = {
   'Java 21': 491,
   'Java 17': 492,
   'Java 8': 493,
+
+  // actions/setup/modLoader.ts — loader build pin
+  'NeoForge Version': 494,
+  'Fabric Loader Version': 495,
+  'Optional. The NeoForge build to install, e.g. "21.8.54". It must be a build for the Minecraft version above. Leave empty to install the newest build for that version, re-checked on every start. NeoForge refuses clients on a different build, so pin it once players are set up.': 496,
+  'Optional. The Fabric Loader build to install, e.g. "0.19.5". Leave empty to install the newest build, re-checked on every start. Pin it to keep the server on one build across restarts.': 497,
 } as const
 
 /**

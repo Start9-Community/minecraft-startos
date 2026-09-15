@@ -69,6 +69,7 @@ const storeConfigSchema = z.object({
   modLoader: modLoaderSchema.catch(defaultModLoader),
   javaVersion: javaVersionSchema.catch(defaultJavaVersion),
   modMinecraftVersion: z.string().catch(defaultModMinecraftVersion),
+  loaderVersion: z.string().optional().catch(undefined),
   mods: z.array(modEntrySchema).catch([]),
   modpack: modpackSchema,
 })
