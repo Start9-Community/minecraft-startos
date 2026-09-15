@@ -99,7 +99,7 @@ The RCON password is generated once at install and lives in the same file. It is
 
 `server.properties` also holds everything the **Configure Server** action edits — game mode, difficulty, distances, PvP, whitelist enforcement, MOTD — with each field validated and range-checked on read, so a hand-edited nonsense value falls back to its default rather than failing the start.
 
-The store holds what is not a Minecraft setting: the memory profile, the console's credentials, and the mod loader — with its Java, its Minecraft version and mod list, or, for a modpack, the pack's source and options.
+The store holds what is not a Minecraft setting: the memory profile, the console's credentials, and the mod loader — with its Java, its Minecraft version, an optional loader build and its mod list, or, for a modpack, the pack's source and options.
 
 ## Dependencies
 
@@ -148,10 +148,11 @@ The gameplay settings and the memory allocation.
 
 #### Mod Loader
 
-Vanilla, NeoForge, or Fabric with the Minecraft version, the Java, and the mod list for the modded options — or a Modrinth modpack, which brings its own Minecraft version, loader build, mods, configs and overrides, and takes the Java it should run on.
+Vanilla, NeoForge, or Fabric with the Minecraft version, an optional loader build, the Java, and the mod list for the modded options — or a Modrinth modpack, which brings its own Minecraft version, loader build, mods, configs and overrides, and takes the Java it should run on.
 
-- **What it changes:** the loader, the version, the Java, and the mods in the store — and through them the Java the server runs on. For a modpack: the pack's source (a slug, a project or version URL, a direct `.mrpack` URL, or an uploaded file), the Java, whether to force a re-sync, and files to exclude.
+- **What it changes:** the loader, the version, the loader build, the Java, and the mods in the store — and through them the Java the server runs on. For a modpack: the pack's source (a slug, a project or version URL, a direct `.mrpack` URL, or an uploaded file), the Java, whether to force a re-sync, and files to exclude.
 - **Java Version is offered for every modded option, never for vanilla.** Java 21 is the default and runs NeoForge and current Fabric; Java 17 covers the 1.17–1.20 loaders; Java 8 covers packs built for it, such as Forge 1.12.2; Java 25 is the bundled one. The first start on a Java other than the bundled one downloads it.
+- **The loader build floats unless pinned.** With NeoForge Version or Fabric Loader Version empty, the image installs the newest loader build for the Minecraft version and re-resolves it on every start, so a restart after an upstream release moves the server onto the new build. A pinned build is passed as `NEOFORGE_VERSION` or `FABRIC_LOADER_VERSION` and is installed until it is changed; a build that does not exist for the Minecraft version fails the start, which the server log names. NeoForge refuses a client on a different build than the server; Fabric does not check.
 - **Cost:** the service restarts, downloading a Java it has not used before, and, for a modded start, re-downloads mods; a modpack start installs the pack.
 - **Repeat safety:** idempotent, pre-filled. Mods are Modrinth project slugs, each optionally pinned to a version or a release channel; required dependencies are pulled automatically. An uploaded pack re-opens on the upload variant with the file empty, meaning "keep it", so the options can be changed without uploading again.
 - **An uploaded pack is stored on the volume** at `start9/modpack.mrpack`. The action enforces a 512 MiB limit and validates the root `modrinth.index.json` before replacing it. A validation or staging failure preserves the previous upload, and a SHA-256 identity in `store.json` restarts the service only when the uploaded bytes change.
@@ -251,7 +252,7 @@ A restored instance comes back with the same worlds, console and RCON passwords,
 
 1. **Java Edition only.** Bedrock clients cannot connect.
 2. **The vanilla version is the package's**, not the user's — only the modded loaders take a version.
-3. **Changing loader, version, or Java can strand a world.** Clients need the matching loader and Minecraft version plus the client-required mods or client pack.
+3. **Changing loader, version, loader build, or Java can strand a world.** Clients need the matching loader and Minecraft version plus the client-required mods or client pack; a NeoForge client also needs the server's NeoForge build.
 4. **Installing accepts the Mojang EULA** on your behalf.
 5. **The console has one account.** There is no per-user access to the admin interface, and it holds full RCON control.
 6. **Deleting a world requires stopping the service**, and cannot target the active world.

@@ -104,47 +104,66 @@ const toVersionValue = (version: string | undefined): VersionValue =>
       ? { selection: version, value: {} }
       : { selection: 'pinned', value: { version } }
 
-const moddedSpec = InputSpec.of({
-  minecraftVersion: Value.text({
-    name: i18n('Minecraft Version'),
-    description: i18n(
-      'Minecraft version for the modded server. It must be supported by the loader, the mods, and the chosen Java. Every client must run this version.',
-    ),
-    required: true,
-    default: defaultModMinecraftVersion,
-    placeholder: '1.21.8',
-    masked: false,
-  }),
-  javaVersion: javaVersionField,
-  mods: Value.list(
-    List.obj(
-      {
-        name: i18n('Mods'),
-        description: i18n(
-          'Mods to install from Modrinth. Dependencies download automatically. Every client must install the client-required mods at matching versions.',
-        ),
-        default: [],
-      },
-      {
-        spec: InputSpec.of({
-          slug: Value.text({
-            name: i18n('Modrinth Project Slug'),
-            description: i18n(
-              'Modrinth project slug, e.g. "giants-of-the-cretaceous".',
+const moddedSpec = (loader: 'neoforge' | 'fabric') =>
+  InputSpec.of({
+    minecraftVersion: Value.text({
+      name: i18n('Minecraft Version'),
+      description: i18n(
+        'Minecraft version for the modded server. It must be supported by the loader, the mods, and the chosen Java. Every client must run this version.',
+      ),
+      required: true,
+      default: defaultModMinecraftVersion,
+      placeholder: '1.21.8',
+      masked: false,
+    }),
+    loaderVersion: Value.text({
+      name:
+        loader === 'neoforge'
+          ? i18n('NeoForge Version')
+          : i18n('Fabric Loader Version'),
+      description:
+        loader === 'neoforge'
+          ? i18n(
+              'Optional. The NeoForge build to install, e.g. "21.8.54". It must be a build for the Minecraft version above. Leave empty to install the newest build for that version, re-checked on every start. NeoForge refuses clients on a different build, so pin it once players are set up.',
+            )
+          : i18n(
+              'Optional. The Fabric Loader build to install, e.g. "0.19.5". Leave empty to install the newest build, re-checked on every start. Pin it to keep the server on one build across restarts.',
             ),
-            required: true,
-            default: null,
-            placeholder: 'giants-of-the-cretaceous',
-            masked: false,
+      required: false,
+      default: null,
+      placeholder: loader === 'neoforge' ? '21.8.54' : '0.19.5',
+      masked: false,
+    }),
+    javaVersion: javaVersionField,
+    mods: Value.list(
+      List.obj(
+        {
+          name: i18n('Mods'),
+          description: i18n(
+            'Mods to install from Modrinth. Dependencies download automatically. Every client must install the client-required mods at matching versions.',
+          ),
+          default: [],
+        },
+        {
+          spec: InputSpec.of({
+            slug: Value.text({
+              name: i18n('Modrinth Project Slug'),
+              description: i18n(
+                'Modrinth project slug, e.g. "giants-of-the-cretaceous".',
+              ),
+              required: true,
+              default: null,
+              placeholder: 'giants-of-the-cretaceous',
+              masked: false,
+            }),
+            version: versionField,
           }),
-          version: versionField,
-        }),
-        displayAs: '{{slug}}',
-        uniqueBy: 'slug',
-      },
+          displayAs: '{{slug}}',
+          uniqueBy: 'slug',
+        },
+      ),
     ),
-  ),
-})
+  })
 
 const modpackSpec = InputSpec.of({
   source: Value.union({
@@ -212,11 +231,11 @@ const loaderVariants = Variants.of({
   },
   neoforge: {
     name: i18n('NeoForge (recommended for mods)'),
-    spec: moddedSpec,
+    spec: moddedSpec('neoforge'),
   },
   fabric: {
     name: i18n('Fabric'),
-    spec: moddedSpec,
+    spec: moddedSpec('fabric'),
   },
   modpack: {
     name: i18n('Modrinth Modpack (installs mods, configs and loader together)'),
@@ -280,6 +299,7 @@ export const modLoader = sdk.Action.withInput(
         selection: store.modLoader,
         value: {
           minecraftVersion: store.modMinecraftVersion,
+          loaderVersion: store.loaderVersion ?? null,
           javaVersion: { selection: store.javaVersion, value: {} },
           mods: store.mods.map((mod) => ({
             slug: mod.slug,
@@ -373,6 +393,7 @@ export const modLoader = sdk.Action.withInput(
     await storeJson.merge(effects, {
       modLoader: input.loader.selection,
       modMinecraftVersion: input.loader.value.minecraftVersion,
+      loaderVersion: input.loader.value.loaderVersion?.trim() || undefined,
       javaVersion: input.loader.value.javaVersion.selection,
       mods: input.loader.value.mods.map((mod) => {
         const version = mod.version
