@@ -8,12 +8,16 @@ const passwordLength = 22
 
 export const setWebAdminPassword = sdk.Action.withoutInput(
   'set-web-admin-password',
-  async () => ({
+  async ({ effects }) => ({
     name: i18n('Set Web Admin Password'),
     description: i18n(
       'Generate a new random password for the RCON Web Admin UI. The service cannot start until a password has been set.',
     ),
-    warning: null,
+    warning: (await storeJson.read((s) => s.webAdminPassword).const(effects))
+      ? i18n(
+          'Replaces the Web Admin password; the current one stops working, and a running server restarts.',
+        )
+      : null,
     allowedStatuses: 'any',
     group: i18n('Setup'),
     visibility: 'enabled',

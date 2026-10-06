@@ -168,7 +168,7 @@ Generates the console password and shows it once.
 
 - **What it changes:** the password in the store.
 - **Cost:** the service restarts.
-- **Repeat safety:** each run generates a **new** password. It is never user-chosen.
+- **Repeat safety:** each run generates a **new** password. It is never user-chosen. Once a password exists, the action asks for confirmation before replacing it.
 
 #### Manage Whitelist
 
@@ -197,7 +197,7 @@ Switches the active world to another directory on the volume and restarts. Nothi
 Permanently deletes a world directory.
 
 - **Only when the service is stopped**, and only for a world that is not the configured one — switch first.
-- Requires typing `DELETE` to confirm.
+- No world is preselected, and it requires typing `DELETE` to confirm.
 - **Irreversible.** There is no trash; the backup is the only recovery.
 
 ### Info

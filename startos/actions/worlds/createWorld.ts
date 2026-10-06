@@ -19,7 +19,7 @@ const inputSpec = InputSpec.of({
   worldName: Value.text({
     name: i18n('New World Name'),
     description: i18n(
-      'Name for the new world save folder. Use a unique name to avoid overwriting or confusion.',
+      'The save folder name for the new world, which the server generates on its next start.',
     ),
     required: true,
     default: '',
