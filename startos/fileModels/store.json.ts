@@ -25,7 +25,7 @@ export const defaultJavaVersion: JavaVersion = 'java21'
 export const modEntrySchema = z
   .union([
     z.string(),
-    z.object({ slug: z.string(), version: z.string().optional() }),
+    z.looseObject({ slug: z.string(), version: z.string().optional() }),
   ])
   .transform((entry): { slug: string; version?: string } =>
     typeof entry === 'string' ? { slug: entry } : entry,
@@ -34,7 +34,7 @@ export const modEntrySchema = z
 export type ModEntry = z.infer<typeof modEntrySchema>
 
 const memorySchema = z
-  .object({
+  .looseObject({
     initial: z.string().catch(defaultInitialMemory),
     maximum: z.string().catch(defaultMaximumMemory),
   })
@@ -47,7 +47,7 @@ export const uploadedModpackSubpath = 'start9/modpack.mrpack'
 export const uploadedModpackPath = `/data/${uploadedModpackSubpath}`
 
 const modpackSchema = z
-  .object({
+  .looseObject({
     source: z.string().catch(''),
     excludeFiles: z.string().optional().catch(undefined),
     forceResync: z.boolean().catch(false),
@@ -60,7 +60,7 @@ const modpackSchema = z
     uploadHash: undefined,
   })
 
-const storeConfigSchema = z.object({
+const storeConfigSchema = z.looseObject({
   memory: memorySchema,
   webAdminUsername: z.string().catch(defaultWebAdminUsername),
   webAdminPassword: z.string().optional().catch(undefined),

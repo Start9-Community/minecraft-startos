@@ -36,18 +36,18 @@ const inputSpec = InputSpec.of({
 
     return {
       name: i18n('World Save'),
-      description: i18n('Select the world save folder to permanently delete.'),
+      description: i18n(
+        'The world in use cannot be deleted; switch away from it with Select World first.',
+      ),
       warning: i18n('Deleting a world is permanent and cannot be undone.'),
-      default: worldNames[0],
+      default: null,
       values: toWorldSelectValues(worldNames),
       disabled: false,
     }
   }),
   confirmation: Value.text({
     name: i18n('Type DELETE to Confirm'),
-    description: i18n(
-      'This permanently deletes the selected world save folder.',
-    ),
+    description: null,
     required: true,
     default: '',
     placeholder: 'DELETE',

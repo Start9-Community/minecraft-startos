@@ -23,7 +23,9 @@ const parseWhitelist = (output: string): string[] => {
 const inputSpec = InputSpec.of({
   enabled: Value.toggle({
     name: i18n('Enable Whitelist'),
-    description: i18n('Only allow whitelisted players to join'),
+    description: i18n(
+      'On: only the players listed below can join. Off: anyone can join, and the list is kept for later.',
+    ),
     default: defaultWhitelistEnabled,
   }),
   players: Value.list(

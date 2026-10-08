@@ -149,7 +149,9 @@ const memoryVariants = Variants.of({
 const inputSpec = InputSpec.of({
   gameMode: Value.select({
     name: i18n('Game Mode'),
-    description: i18n('Select the default game mode for players'),
+    description: i18n(
+      'The game mode new players join in.\n- Survival: gather resources, take damage and get hungry\n- Creative: unlimited blocks and flight, no damage\n- Adventure: like Survival, but players cannot break or place blocks\n- Spectator: fly through blocks and watch without interacting',
+    ),
     default: defaultGameMode,
     values: {
       survival: i18n('Survival'),
@@ -160,7 +162,9 @@ const inputSpec = InputSpec.of({
   }),
   difficulty: Value.select({
     name: i18n('Difficulty'),
-    description: i18n('Server difficulty level'),
+    description: i18n(
+      'How dangerous the world is.\n- Peaceful: hostile mobs do not spawn, and health regenerates\n- Easy: hostile mobs deal less damage\n- Normal: standard damage\n- Hard: hostile mobs deal more damage, and hunger can kill',
+    ),
     default: defaultDifficulty,
     values: {
       peaceful: i18n('Peaceful'),
@@ -172,14 +176,14 @@ const inputSpec = InputSpec.of({
   memory: Value.union({
     name: i18n('Memory Allocation'),
     description: i18n(
-      'Pick a preset profile or choose Custom. Most vanilla servers run well with Starter or Standard.',
+      'The memory Java starts with and the most it can grow to. Modded servers and more players need more, and memory the server uses is unavailable to your other services.\n- Starter: starts at 1 GiB, up to 2 GiB\n- Standard: starts at 2 GiB, up to 4 GiB\n- High: starts at 4 GiB, up to 6 GiB\n- Custom: set both yourself',
     ),
     default: defaultMemoryVariant,
     variants: memoryVariants,
   }),
   maxPlayers: Value.number({
     name: i18n('Max Players'),
-    description: i18n('Maximum number of players that can join'),
+    description: null,
     required: true,
     default: defaultMaxPlayers,
     integer: true,
@@ -215,26 +219,26 @@ const inputSpec = InputSpec.of({
   onlineMode: Value.toggle({
     name: i18n('Online Mode'),
     description: i18n(
-      'Require Mojang account authentication for joining players. Strongly recommended for public servers.',
+      "On: every player signs in with a Microsoft account, so names cannot be faked. Off: anyone can join under any name, an operator's included, so keep the server to a trusted LAN.",
     ),
     default: defaultOnlineMode,
   }),
   pvp: Value.toggle({
     name: i18n('Player-vs-Player (PvP)'),
-    description: i18n('Allow players to damage each other.'),
+    description: null,
     default: defaultPvp,
   }),
   allowFlight: Value.toggle({
     name: i18n('Allow Flight'),
     description: i18n(
-      'Allow player flight. Useful for modded clients; also prevents accidental kicks from anti-flying checks.',
+      'Off: a Survival player who stays in the air too long is kicked, which stops flying cheats. Turn it on when a mod lets players fly, or they are kicked for using it.',
     ),
     default: defaultAllowFlight,
   }),
   hardcore: Value.toggle({
     name: i18n('Hardcore Mode'),
     description: i18n(
-      'Enable hardcore gameplay rules. Intended for permanent-death style servers.',
+      'Difficulty is locked to Hard, and a player who dies becomes a spectator instead of respawning.',
     ),
     default: defaultHardcore,
   }),

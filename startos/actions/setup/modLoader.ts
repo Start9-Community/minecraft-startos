@@ -16,7 +16,7 @@ const { InputSpec, Value, Variants, List } = sdk
 const versionField = Value.union({
   name: i18n('Version'),
   description: i18n(
-    'Which build to install. Pick a pre-release channel for mods that only publish beta/alpha builds (e.g. JEI on newer Minecraft versions).',
+    'Which build of the mod to install.\n- Latest release: the newest stable build\n- Latest beta: the newest beta or stable build, for mods that publish only betas\n- Latest alpha: the newest build of any kind\n- Pin a specific version: one exact build, by version number or Modrinth version ID',
   ),
   default: 'release',
   variants: Variants.of({
@@ -50,7 +50,7 @@ type VersionValue =
 const javaVersionField = Value.union({
   name: i18n('Java Version'),
   description: i18n(
-    'The Java the server runs on, downloaded on first use. Java 21 runs NeoForge and current Fabric; Java 17 runs Minecraft 1.17 to 1.20 loaders; Java 8 runs older packs such as Forge 1.12.2. Pick the Java the loader or pack was built for.',
+    'The Java the server runs on. Pick the one the loader or pack was built for; any but Java 25 downloads on first start.\n- Java 25: built into the server\n- Java 21: NeoForge and current Fabric\n- Java 17: loaders for Minecraft 1.17 to 1.20\n- Java 8: older packs, such as Forge 1.12.2',
   ),
   default: defaultJavaVersion,
   variants: Variants.of({
@@ -149,7 +149,7 @@ const moddedSpec = (loader: 'neoforge' | 'fabric') =>
             slug: Value.text({
               name: i18n('Modrinth Project Slug'),
               description: i18n(
-                'Modrinth project slug, e.g. "giants-of-the-cretaceous".',
+                "The part of the mod's Modrinth address after /mod/, or its project ID.",
               ),
               required: true,
               default: null,
@@ -169,7 +169,7 @@ const modpackSpec = InputSpec.of({
   source: Value.union({
     name: i18n('Modpack Source'),
     description: i18n(
-      'Where to get the pack. Modrinth project sources are checked on start, direct .mrpack URLs are cached, and uploaded packs are kept on the volume.',
+      'Where to get the pack.\n- Modrinth project or URL: a Modrinth project is checked for a new version on every start; a direct .mrpack link is downloaded once and cached\n- Upload a .mrpack file: a pack exported from a launcher, kept on the server',
     ),
     default: 'url',
     variants: Variants.of({
@@ -247,7 +247,7 @@ const inputSpec = InputSpec.of({
   loader: Value.union({
     name: i18n('Mod Loader'),
     description: i18n(
-      'Vanilla runs the latest Minecraft with no mods. NeoForge or Fabric let you pick mods yourself. A Modrinth modpack installs a curated set — mods, configs and the loader build it was built against — in one step.',
+      '- Vanilla: plain Minecraft, no mods\n- NeoForge: NeoForge with mods you pick from Modrinth\n- Fabric: Fabric with mods you pick from Modrinth\n- Modrinth Modpack: a ready-made pack, installing its mods, configs and loader build together',
     ),
     default: defaultModLoader,
     variants: loaderVariants,

@@ -27,7 +27,7 @@ const iniNum = z.preprocess(
 const enforcedNum = <T extends number>(value: T) =>
   iniNum.pipe(z.literal(value)).catch(value)
 
-const shape = z.object({
+const shape = z.looseObject({
   // Mutable gameplay/world settings (server.properties keys are kebab-case).
   gamemode: z
     .enum(['survival', 'creative', 'adventure', 'spectator'])

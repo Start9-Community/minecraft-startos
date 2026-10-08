@@ -18,16 +18,23 @@ Freshly scaffolded? Work the
 guide page, not a file in this repo — read it, don't copy it in.
 
 Keep `README.md` (technical reference for an AI support or administering agent) and
-`instructions.md` (end-user docs) in sync with your changes.
+`instructions.md` (end-user docs) in sync with your changes. This file restates neither:
+whoever changes the package has both, so it carries only what they don't — repo mechanics,
+a change that looks right and is not, where the next thing gets added, a naming trap, a
+build or test invocation particular to this repo.
 
-**Bugs and feature requests are GitHub issues on this repo** — file them as you find them.
+**Fix a defect you spot rather than reporting it** — you have the package open and the
+context to be sure. File **a GitHub issue on this repo** only when the call isn't yours to
+make: you can't pin the cause down, two defensible fixes exist, or it's too large to ride on
+the work in hand. An open issue is a report, not a queue — implement one when you're asked
+to or when it's labelled `Approved`, then close it with `Closes #<n>`.
+
 Don't record work in the repo instead: no `TODO.md`, no `NOTES.md`, no `PLAN.md`. What you
 verified, tried, and decided belongs in the commit message and the PR body.
 
 ## This repo
 
-- **`RCON_PASSWORD` must be handed to the image.** Without it `mc-server-runner` can't stop the server over RCON: vanilla falls back to writing `stop` to the console, but a modded server runs under `run.sh` where that also fails, so the JVM is SIGKILLed after the termination grace instead of saving.
-- **`SKIP_SERVER_PROPERTIES` is load-bearing** — the package owns that file via `FileHelper.ini`, and letting the image regenerate it from env vars would overwrite every managed setting.
-- **`rconWebAdminDbPath` embeds the rcon-web-admin version** and must be updated with the `FROM` line in `rcon.Dockerfile` — the image installs to a versioned directory, and a stale path mounts the volume somewhere nothing reads.
-- **The whitelist is edited over RCON, not by writing `whitelist.json`.** The server resolves each name to the mode-correct UUID; writing the file directly gets offline-mode players wrong. The enforcement flags are then persisted to `server.properties`, which is the source of truth on restart.
-- **`enable-rcon`, `rcon.port` and `server-port` are `z.literal` pins**, so a user edit is repaired on read. The health check, the console, and every RCON-driven action depend on them.
+- **Keep `RCON_PASSWORD` in the server's env.** Without it a modded server can't be stopped over RCON, so the JVM is killed without saving.
+- **Keep `SKIP_SERVER_PROPERTIES`.** The package owns `server.properties`; the image would otherwise regenerate it from env and overwrite every managed setting.
+- **Bump `rconWebAdminDbPath` in `main.ts` with the `FROM` line in `rcon.Dockerfile`.** The path embeds the rcon-web-admin version, and a stale one persists nothing.
+- **Edit the whitelist over RCON, never by writing `whitelist.json`.** Only the server resolves each name to the UUID that matches its online mode.

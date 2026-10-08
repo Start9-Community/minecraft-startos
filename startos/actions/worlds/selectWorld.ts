@@ -35,7 +35,7 @@ const inputSpec = InputSpec.of({
     return {
       name: i18n('World Save'),
       description: i18n(
-        'Select which existing world save to use as the configured world.',
+        'Switching restarts the server. The current world stays saved.',
       ),
       warning: null,
       default: worldNames[0],

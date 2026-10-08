@@ -35,7 +35,7 @@ The **Web Admin** interface is the RCON-backed server console. Once logged in, y
 
 ### Setup actions
 
-- **Set Web Admin Password** — generate a fresh random Web Admin password and show it once. Re-run any time to rotate the password; the service restarts automatically to apply it.
+- **Set Web Admin Password** — generate a fresh random Web Admin password and show it once. Re-run any time to rotate the password; it asks for confirmation first, and the service restarts automatically to apply it.
 - **Configure Server** — gameplay, world generation, performance, networking-related toggles (online mode, max players), and memory profile.
 - **Mod Loader** — switch the server between Vanilla (default), NeoForge, or Fabric and install mods, or install a whole Modrinth modpack. For NeoForge/Fabric, enter a compatible Minecraft version and Modrinth project slugs (e.g. `giants-of-the-cretaceous`), and required dependencies download automatically; the loader build can be pinned, or left empty to keep the newest one. A modpack — a Modrinth slug, project or version URL, direct `.mrpack` URL, or uploaded `.mrpack` file — brings its own Minecraft version, loader build, mods, and configs. Every modded option also has a **Java Version** (Java 25, Java 21 by default, Java 17, or Java 8); the one you pick downloads the first time it is used.
 - **Get Server Info** — show the active server configuration (game mode, difficulty, memory, MOTD, max players, whitelist state, whitelisted players, Web Admin username).
