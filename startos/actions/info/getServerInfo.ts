@@ -40,6 +40,7 @@ export const getServerInfo = sdk.Action.withoutInput(
             value: props.gamemode,
             copyable: false,
             qr: false,
+            launchable: false,
             masked: false,
           },
           {
@@ -49,6 +50,7 @@ export const getServerInfo = sdk.Action.withoutInput(
             value: props.difficulty,
             copyable: false,
             qr: false,
+            launchable: false,
             masked: false,
           },
           {
@@ -58,6 +60,7 @@ export const getServerInfo = sdk.Action.withoutInput(
             value: `${store.memory.initial} to ${store.memory.maximum}`,
             copyable: false,
             qr: false,
+            launchable: false,
             masked: false,
           },
           {
@@ -67,6 +70,7 @@ export const getServerInfo = sdk.Action.withoutInput(
             value: props.motd,
             copyable: false,
             qr: false,
+            launchable: false,
             masked: false,
           },
           {
@@ -76,6 +80,7 @@ export const getServerInfo = sdk.Action.withoutInput(
             value: props['max-players'].toString(),
             copyable: false,
             qr: false,
+            launchable: false,
             masked: false,
           },
           {
@@ -85,6 +90,7 @@ export const getServerInfo = sdk.Action.withoutInput(
             value: props['white-list'] ? i18n('Yes') : i18n('No'),
             copyable: false,
             qr: false,
+            launchable: false,
             masked: false,
           },
           {
@@ -96,6 +102,7 @@ export const getServerInfo = sdk.Action.withoutInput(
             value: store.webAdminUsername,
             copyable: true,
             qr: false,
+            launchable: false,
             masked: false,
           },
         ],

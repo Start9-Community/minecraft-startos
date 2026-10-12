@@ -13,6 +13,7 @@ const toSingle = (
   value,
   copyable: false,
   qr: false,
+  launchable: false,
   masked: false,
 })
 

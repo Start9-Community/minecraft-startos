@@ -1,7 +1,7 @@
 {
   "name": "minecraft-startos",
   "dependencies": {
-    "@start9labs/start-sdk": "3.0.3",
+    "@start9labs/start-sdk": "3.0.6",
     "prismarine-nbt": "^2.8.0",
     "yauzl": "^3.4.0"
   },
