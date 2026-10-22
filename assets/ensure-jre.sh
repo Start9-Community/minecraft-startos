@@ -1,12 +1,27 @@
 #!/bin/bash
 # Usage: ensure-jre.sh <java feature release> <install dir>
-# Installs the latest Temurin JRE for that release into the directory unless one is already there.
+# Installs the latest Temurin JRE for that release into the directory unless one is already there,
+# then removes the emSign roots from its cacerts.
 set -euo pipefail
 
 release=$1
 dest=$2
 
-[ -x "$dest/bin/java" ] && exit 0
+distrust_emsign() {
+  local store=$dest/lib/security/cacerts
+  keytool -list -keystore "$store" -storepass changeit |
+    { grep -i '^[^ ]*emsign.*trustedCertEntry' || true; } |
+    sed -E 's/, [A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}, trustedCertEntry,.*$//' |
+    while IFS= read -r alias; do
+      keytool -delete -keystore "$store" -storepass changeit -alias "$alias"
+    done
+  ! keytool -list -keystore "$store" -storepass changeit | grep -qi emsign
+}
+
+if [ -x "$dest/bin/java" ]; then
+  distrust_emsign
+  exit 0
+fi
 
 case "$(uname -m)" in
   x86_64) arch=x64 ;;
@@ -27,3 +42,4 @@ tar -xzf "$staging/jre.tar.gz" -C "$staging/jre" --strip-components=1
 
 rm -rf "$dest"
 mv "$staging/jre" "$dest"
+distrust_emsign
