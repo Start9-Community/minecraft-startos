@@ -37,11 +37,11 @@ A Minecraft Java Edition server, packaged from [itzg's server image](https://git
 
 Three images, and **the Java the server runs on is decided at start**.
 
-| Property      | Value                                                        |
-| ------------- | ------------------------------------------------------------ |
-| Images        | One `itzg/minecraft-server` tag, an `itzg/rcon` build, nginx |
-| Architectures | x86_64, aarch64                                              |
-| Command       | Each image's own entrypoint                                  |
+| Property      | Value                                                           |
+| ------------- | --------------------------------------------------------------- |
+| Images        | One `itzg/minecraft-server` tag, an rcon-web-admin build, nginx |
+| Architectures | x86_64, aarch64                                                 |
+| Command       | Each image's own entrypoint                                     |
 
 | Subcontainer           | Purpose                                            |
 | ---------------------- | -------------------------------------------------- |
@@ -53,9 +53,9 @@ Three images, and **the Java the server runs on is decided at start**.
 
 The oneshot verifies the tarball's SHA-256 against the Adoptium API, keeps a runtime that is already in place, removes the emSign roots from that runtime's `cacerts` on every run, and retries with backoff if the download fails — a modded server whose Java cannot be fetched stays waiting on it rather than starting on the wrong one.
 
-The server image is built through the root `Dockerfile`, a temporary layer that upgrades Ubuntu's `ca-certificates` and removes the emSign roots from the bundled Java's `cacerts`; it comes out once upstream ships an image built on fixed stores. The server image and the console's base are **pinned by digest**, so a rebuild produces the same bits rather than following a moving tag. The downloaded runtimes are not pinned: each is the latest GA build of its release line at download time.
+The server image is built through the root `Dockerfile`, a temporary layer that upgrades Ubuntu's `ca-certificates` and removes the emSign roots from the bundled Java's `cacerts`; it comes out once upstream ships an image built on fixed stores. The server image and the `itzg/rcon` image the console's code is taken from are **pinned by digest**, so a rebuild produces the same bits rather than following a moving tag. The downloaded runtimes are not pinned: each is the latest GA build of its release line at download time.
 
-**The console image is built here, not consumed as-is.** It applies two patches to rcon-web-admin's browser code — a `history.pushState` call that throws and takes the page down with it, and a dropdown that renders empty until it is refreshed. The build fails loudly if either patch no longer applies, rather than silently shipping an unpatched console.
+**The console image is built here, not consumed as-is.** It copies rcon-web-admin 0.14.1, with its installed dependencies and core widgets, out of the `itzg/rcon` image and runs it on `node:24.22.1-bookworm-slim`. It also applies two patches to rcon-web-admin's browser code — a `history.pushState` call that throws and takes the page down with it, and a dropdown that renders empty until it is refreshed. The build fails loudly if either patch no longer applies, rather than silently shipping an unpatched console.
 
 **nginx exists because the console listens on two ports** — HTTP on one, its websocket on another — and a browser reaching it through StartOS gets one address. The proxy serves the page, forwards the websocket, and rewrites the console's own endpoint discovery so the browser is told to connect back through the same address.
 
@@ -275,7 +275,7 @@ oneshots:
   - ensure-jre # modded only, when store.javaVersion is not the bundled one; downloads it to start9/jre/<version>/
 subcontainers:
   - minecraft-server-sub # PATH leads with the downloaded Java when one is chosen
-  - rcon-sub # rcon-web-admin, built here from a digest-pinned itzg/rcon plus two frontend patches
+  - rcon-sub # rcon-web-admin from a digest-pinned itzg/rcon, on node:24.22.1-bookworm-slim, plus two frontend patches
   - rcon-proxy-sub # nginx; unifies the console's http + websocket ports and rewrites /wsconfig
 volumes:
   main: /data # worlds, server.properties, start9/store.json, uploaded modpack, start9/jre/, rcon-db/

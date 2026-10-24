@@ -1,6 +1,6 @@
 # Updating the upstream version
 
-This package wraps `itzg/minecraft-server` (the canonical containerized Minecraft Java Edition server) and ships two sidecars (`itzg/rcon` and an `nginx` proxy). The "upstream version" therefore has **three independently versioned image sources** plus the Mojang Minecraft release that the `itzg/minecraft-server` image launches via its `VERSION` env. The Minecraft release is coupled to the `itzg/minecraft-server` base tag — vanilla runs on the Java the chosen tag bundles — so those two must always move together. The Javas a modded server can run on are downloaded from Adoptium at start, not shipped, so they have no pin here.
+This package wraps `itzg/minecraft-server` (the canonical containerized Minecraft Java Edition server) and ships two sidecars (rcon-web-admin, taken from `itzg/rcon` and run on `node`, and an `nginx` proxy). The "upstream version" therefore has **four independently versioned image sources** plus the Mojang Minecraft release that the `itzg/minecraft-server` image launches via its `VERSION` env. The Minecraft release is coupled to the `itzg/minecraft-server` base tag — vanilla runs on the Java the chosen tag bundles — so those two must always move together. The Javas a modded server can run on are downloaded from Adoptium at start, not shipped, so they have no pin here.
 
 ## Determining the upstream version
 
@@ -33,7 +33,16 @@ This package wraps `itzg/minecraft-server` (the canonical containerized Minecraf
   curl -fsSL "https://hub.docker.com/v2/repositories/itzg/rcon/tags?page_size=20&ordering=last_updated" \
     | jq -r '.results[] | "\(.name)\t\(.digest)"'
   ```
-- Pinned in `rcon.Dockerfile` via `FROM itzg/rcon@sha256:…`.
+- Pinned in `rcon.Dockerfile` via `FROM itzg/rcon@sha256:…`. Only `/opt/rcon-web-admin-<version>` is taken from it.
+
+**`node`** — the runtime the console runs on.
+
+- Canonical home: <https://hub.docker.com/_/node> (release schedule and security releases at <https://nodejs.org/en/about/previous-releases>).
+- Track the newest patch of the active LTS line:
+  ```sh
+  curl -fsSL https://nodejs.org/dist/index.json | jq -r '[.[] | select(.lts)][0].version'
+  ```
+- Pinned in `rcon.Dockerfile` as `FROM node:<version>-bookworm-slim`.
 
 **`nginx`** — the `rcon-proxy` reverse-proxy image.
 
@@ -52,7 +61,9 @@ This package wraps `itzg/minecraft-server` (the canonical containerized Minecraf
 1. In `startos/manifest/index.ts`, update the `dockerTag` for the `minecraft-server` image to `itzg/minecraft-server:<base>@sha256:<digest>` using the new base tag (e.g. `java25`) and the digest from the Docker Hub query above. If the base tag's Java changed, update `bundledJavaVersion` and the `javaVersionSchema` enum as described above.
 2. In `startos/main.ts`, update `vanillaVersion` to the new Mojang release. Confirm the release runs on the Java the chosen base tag bundles — vanilla has no other Java to fall back on.
 
-**`itzg/rcon`**: in `rcon.Dockerfile`, update the `FROM itzg/rcon@sha256:<digest>` line to the new digest. Its `apply-patches.js` throws when a snippet no longer matches, which is deliberate — a silently unpatched rcon-web-admin has a `pushState` that takes the page down and a dropdown that renders empty. Re-derive the patch rather than dropping it.
+**`itzg/rcon`**: in `rcon.Dockerfile`, update the `FROM itzg/rcon@sha256:<digest>` line to the new digest. If the image's rcon-web-admin version changed, update the `COPY` and `ln` paths with it, and `rconWebAdminDbPath` in `startos/main.ts`; re-check the image's config (`docker buildx imagetools inspect itzg/rcon@sha256:<digest> --format '{{json .Image}}'`) against the `WORKDIR`, `ENV` and `ENTRYPOINT` the Dockerfile restates. Its `apply-patches.js` throws when a snippet no longer matches, which is deliberate — a silently unpatched rcon-web-admin has a `pushState` that takes the page down and a dropdown that renders empty. Re-derive the patch rather than dropping it.
+
+**`node`**: in `rcon.Dockerfile`, update the `FROM node:<version>-bookworm-slim` line. A major bump needs the console checked on it: rcon-web-admin 0.14.1 and its dependencies are old pure-JS code.
 
 **`nginx` (`rcon-proxy`)**: in `startos/manifest/index.ts`, update the `dockerTag` for the `rcon-proxy` image to the new `nginx:<tag>-alpine` value.
 
