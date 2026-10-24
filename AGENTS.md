@@ -36,5 +36,5 @@ verified, tried, and decided belongs in the commit message and the PR body.
 
 - **Keep `RCON_PASSWORD` in the server's env.** Without it a modded server can't be stopped over RCON, so the JVM is killed without saving.
 - **Keep `SKIP_SERVER_PROPERTIES`.** The package owns `server.properties`; the image would otherwise regenerate it from env and overwrite every managed setting.
-- **Bump `rconWebAdminDbPath` in `main.ts` with the `FROM` line in `rcon.Dockerfile`.** The path embeds the rcon-web-admin version, and a stale one persists nothing.
+- **Bump `rconWebAdminDbPath` in `main.ts` with the rcon-web-admin version in `rcon.Dockerfile`.** The path embeds the rcon-web-admin version, and a stale one persists nothing.
 - **Edit the whitelist over RCON, never by writing `whitelist.json`.** Only the server resolves each name to the UUID that matches its online mode.
