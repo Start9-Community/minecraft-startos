@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '26.2:11',
+  version: '26.3:1',
   releaseNotes: {
-    en_US: `- Stops trusting certificates from a compromised certificate authority (eMudhra).
-- Includes the October 2026 Node.js security fixes.`,
-    es_ES: `- Deja de confiar en los certificados de una autoridad de certificación comprometida (eMudhra).
-- Incluye las correcciones de seguridad de Node.js de octubre de 2026.`,
-    de_DE: `- Vertraut Zertifikaten einer kompromittierten Zertifizierungsstelle (eMudhra) nicht mehr.
-- Enthält die Node.js-Sicherheitskorrekturen vom Oktober 2026.`,
-    pl_PL: `- Przestaje ufać certyfikatom przejętego urzędu certyfikacji (eMudhra).
-- Zawiera poprawki bezpieczeństwa Node.js z października 2026.`,
-    fr_FR: `- Ne fait plus confiance aux certificats d'une autorité de certification compromise (eMudhra).
-- Inclut les correctifs de sécurité Node.js d'octobre 2026.`,
+    en_US: `- Bumps vanilla Minecraft to 26.3.
+- Updates the pinned digest for the itzg/minecraft-server java25 image.`,
+    es_ES: `- Actualiza Minecraft vanilla a 26.3.
+- Actualiza el digest fijado de la imagen itzg/minecraft-server java25.`,
+    de_DE: `- Aktualisiert Vanilla-Minecraft auf 26.3.
+- Aktualisiert den gepinnten Digest für das itzg/minecraft-server-Image java25.`,
+    pl_PL: `- Aktualizuje waniliowego Minecrafta do wersji 26.3.
+- Aktualizuje przypięty digest obrazu itzg/minecraft-server java25.`,
+    fr_FR: `- Met à jour Minecraft vanilla vers la version 26.3.
+- Met à jour le digest épinglé de l'image itzg/minecraft-server java25.`,
   },
   migrations: {
     up: async ({ effects }) => {},
